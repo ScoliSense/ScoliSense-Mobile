@@ -20,6 +20,8 @@ dependencies:
   syncfusion_flutter_gauges: ^28.2.7
   flutter_blue_plus: ^1.5.0 # Check for the latest version
   permission_handler: ^11.0.0
+  flutter_foreground_task: ^6.1.1
+
 
 dev_dependencies:
   flutter_test:

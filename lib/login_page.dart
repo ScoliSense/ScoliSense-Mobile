@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'dart:isolate';
+
+
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 import 'MainPage.dart';
@@ -35,17 +39,14 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.remove('password');
     }
 
-    // Save session info
     await prefs.setString('loggedInEmail', email);
     await prefs.setString('fullName', fullName);
     await prefs.setString('authToken', token);
     await prefs.setString('role', role);
 
-    // Save role specific data if present
     if (roleSpecificData != null) {
       await prefs.setString('roleSpecificData', jsonEncode(roleSpecificData));
 
-      // Check if device list is empty
       List<dynamic> deviceList = roleSpecificData['devices'] ?? [];
       if (deviceList.isEmpty) {
         await prefs.remove('deviceName');
@@ -100,20 +101,24 @@ class _LoginPageState extends State<LoginPage> {
         String email = data['email'] ?? '';
         String fullName = data['fullName'] ?? 'Kullanıcı';
         String role = data['role'] ?? 'User';
-        dynamic roleSpecificData = data['roleSpecificData']; // This can be null or contain data
+        dynamic roleSpecificData = data['roleSpecificData'];
 
         print('Giriş başarılı. Token: $token');
         print('Email: $email, Full Name: $fullName, Role: $role');
         print('Role Specific Data: ${roleSpecificData ?? "None"}');
 
-        // Save credentials & session details
         await saveCredentials(emailController.text, passwordController.text, fullName, token, role, roleSpecificData);
 
-        // Clear input fields after successful login
+        // ✅ Foreground Service başlat
+        await FlutterForegroundTask.startService(
+          notificationTitle: 'Skolyoz Mobil Aktif',
+          notificationText: 'Veriler arka planda toplanıyor...',
+          callback: startCallback,
+        );
+
         emailController.clear();
         passwordController.clear();
 
-        // Navigate to MainPage
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => MainPage()),
@@ -254,5 +259,42 @@ class _LoginPageState extends State<LoginPage> {
       style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
       child: isLoading ? CircularProgressIndicator(color: Colors.black) : Text("Giriş Yap", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
     );
+  }
+}
+
+/// Foreground service için callback fonksiyonu
+void startCallback() {
+  FlutterForegroundTask.setTaskHandler(MyTaskHandler());
+}
+
+/// Arka planda çalışacak görevleri yöneten sınıf
+class MyTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+    debugPrint('[ForegroundService] Başladı: $timestamp');
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    debugPrint('[ForegroundService] onEvent: $timestamp');
+    // Sensör verisi gönderme işlemleri buraya yazılabilir
+  }
+
+  @override
+  Future<void> onRepeatEvent(DateTime timestamp, SendPort? sendPort) async {
+    debugPrint('[ForegroundService] onRepeatEvent: $timestamp');
+  }
+
+  @override
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
+    debugPrint('[ForegroundService] Durduruldu: $timestamp');
+  }
+
+  @override
+  void onButtonPressed(String id) {}
+
+  @override
+  void onNotificationPressed() {
+    FlutterForegroundTask.launchApp();
   }
 }
