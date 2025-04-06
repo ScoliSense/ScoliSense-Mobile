@@ -20,13 +20,13 @@
         android:label="skolyozmobil"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Foreground Servis Tanımı -->
-        <service
-            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="location|dataSync|connectedDevice" />
 
-        <!-- ✅ Uygulama Giriş Aktivitesi -->
+        <!-- 🔔 Add this metadata for local notifications -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default_channel" />
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -34,8 +34,10 @@
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode">
+
+
+            android:windowSoftInputMode="adjustResize">
+
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
@@ -47,13 +49,17 @@
             </intent-filter>
         </activity>
 
-        <!-- Flutter Plugin Meta-data -->
+
+        <!-- Flutter Plugin Registrant -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Gerekli text işlem sorguları -->
+
+    <!-- Required for ProcessText plugin -->
+
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />

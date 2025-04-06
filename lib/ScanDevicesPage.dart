@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
+import 'bluetooth_service.dart' as my_ble;
+
 
 class ScanDevicesPage extends StatefulWidget {
   final Function(String) onDeviceConnected;
-  final String? initialConnectedDevice;
 
   ScanDevicesPage({
     required this.onDeviceConnected,
-    required this.initialConnectedDevice,
   });
 
   @override
@@ -23,44 +22,27 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
   bool _isScanning = false;
   BluetoothDevice? _connectedDevice;
   String _connectedDeviceName = "Not Connected";
-  String _bluetoothBuffer = "";
+
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialConnectedDevice != null) {
-      _connectedDeviceName = widget.initialConnectedDevice!;
-      _restoreConnectedDevice();
-    }
+
+    _loadConnectedDevice();
   }
 
-  Future<void> _restoreConnectedDevice() async {
-    await Future.delayed(Duration(seconds: 1));
 
-    List<BluetoothDevice> devices = await FlutterBluePlus.connectedDevices;
-    for (var device in devices) {
-      if (device.name == _connectedDeviceName) {
-        BluetoothConnectionState state = await device.connectionState.first;
-        if (state == BluetoothConnectionState.connected) {
-          _setupConnectionListeners(device);
-          setState(() {
-            _connectedDevice = device;
-          });
-          print("Restored connected device: ${device.name}");
-        } else {
-          setState(() {
-            _connectedDevice = null;
-            _connectedDeviceName = "Not Connected";
-          });
-        }
-        break;
-      }
-    }
+  @override
+  void dispose() {
+    FlutterBluePlus.stopScan();
+    super.dispose();
+
   }
 
   Future<void> _startScan() async {
     var status = await Permission.bluetoothScan.request();
     if (status.isGranted) {
+      if (!mounted) return;
       setState(() {
         _isScanning = true;
         _devices.clear();
@@ -69,16 +51,20 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
       FlutterBluePlus.startScan(timeout: Duration(seconds: 10));
 
       FlutterBluePlus.scanResults.listen((results) {
+        if (!mounted) return;
         setState(() {
+          final connectedDevice = my_ble.MyBluetoothService().connectedDevice;
           _devices = results
               .where((r) =>
           r.device.name.isNotEmpty &&
-              r.device.name != _connectedDeviceName)
+              (connectedDevice == null || r.device.id != connectedDevice.id))
               .toList();
+
         });
       });
 
       await Future.delayed(Duration(seconds: 10));
+      if (!mounted) return;
       setState(() => _isScanning = false);
       FlutterBluePlus.stopScan();
     } else {
@@ -86,7 +72,7 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
     }
   }
 
-  void _connectToDevice(BluetoothDevice device) async {
+  Future<void> _connectToDevice(BluetoothDevice device) async {
     FlutterBluePlus.stopScan();
 
     try {
@@ -98,20 +84,11 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
         return;
       }
 
-      _setupConnectionListeners(device);
 
-      List<BluetoothService> services = await device.discoverServices();
-      for (var service in services) {
-        for (var characteristic in service.characteristics) {
-          if (characteristic.properties.notify) {
-            await characteristic.setNotifyValue(true);
-            characteristic.value.listen((value) {
-              _handleIncomingData(value);
-            });
-          }
-        }
-      }
+      await my_ble.MyBluetoothService().init(device);
 
+
+      if (!mounted) return;
       setState(() {
         _connectedDevice = device;
         _connectedDeviceName = device.name;
@@ -119,6 +96,9 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
       });
 
       widget.onDeviceConnected(device.name);
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('deviceName', device.name);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -131,106 +111,7 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
     }
   }
 
-  void _setupConnectionListeners(BluetoothDevice device) {
-    device.connectionState.listen((state) {
-      if (state == BluetoothConnectionState.disconnected) {
-        print("${device.name} disconnected!");
 
-        setState(() {
-          _connectedDevice = null;
-          _connectedDeviceName = "Not Connected";
-        });
-
-        widget.onDeviceConnected("Not Connected");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("${device.name} disconnected."),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    });
-  }
-
-  void _handleIncomingData(List<int> value) {
-    String newData = String.fromCharCodes(value);
-    _bluetoothBuffer += newData;
-
-    if (_bluetoothBuffer.contains("\n")) {
-      List<String> messages = _bluetoothBuffer.split("\n");
-
-      for (int i = 0; i < messages.length - 1; i++) {
-        String rawMessage = messages[i].trim();
-        print("Received: $rawMessage");
-
-        if (rawMessage.contains(":")) {
-          List<String> parts = rawMessage.split(":");
-          if (parts.length == 2) {
-            String sensorName = parts[0];
-            int? sensorValue = int.tryParse(parts[1]);
-
-            if (sensorValue != null) {
-              _sendSensorData(sensorName, sensorValue);
-            }
-          }
-        }
-      }
-
-      _bluetoothBuffer = messages.last;
-    }
-  }
-
-  Future<void> _sendSensorData(String sensorName, int value) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('authToken');
-
-    if (token == null || token.isEmpty) {
-      print("❌ Auth token not found in SharedPreferences.");
-      return;
-    }
-
-    final url = Uri.parse(
-      'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/SensorData/by-name',
-    );
-
-    final timeStamp = DateTime.now()
-        .toUtc()
-        .subtract(Duration(seconds: 1)) // Prevents "future" error
-        .toIso8601String()
-        .split('.')
-        .first + 'Z';
-
-    final data = {
-      "sensorName": sensorName,
-      "value": value.toDouble(),
-      "timeStamp": timeStamp,
-    };
-
-    print("Sending sensor data: ${jsonEncode(data)}");
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode(data),
-      );
-
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print("✅ Sensor data sent successfully.");
-      } else {
-        print("❌ Failed to send sensor data. Status: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("❌ Error sending sensor data: $e");
-    }
-  }
 
   void _disconnectDevice() async {
     if (_connectedDevice == null) {
@@ -240,12 +121,20 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
 
     try {
       await _connectedDevice!.disconnect();
+
+      if (!mounted) return;
+
       setState(() {
         _connectedDevice = null;
         _connectedDeviceName = "Not Connected";
       });
 
       widget.onDeviceConnected("Not Connected");
+
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('deviceName');
+
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -259,6 +148,29 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
       print("Disconnection error: $e");
     }
   }
+
+  Future<void> _loadConnectedDevice() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedDeviceName = prefs.getString('deviceName');
+
+    if (storedDeviceName != null && storedDeviceName.isNotEmpty) {
+      // Try to restore connected device from the singleton service
+      final device = my_ble.MyBluetoothService().connectedDevice;
+
+      if (device != null) {
+        setState(() {
+          _connectedDevice = device;
+          _connectedDeviceName = device.name;
+        });
+      } else {
+        // Fallback to just showing the name if device object is not accessible
+        setState(() {
+          _connectedDeviceName = storedDeviceName;
+        });
+      }
+    }
+  }
+
 
   @override
   void dispose() {
@@ -333,7 +245,10 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
         subtitle: Text("Connected", style: TextStyle(color: Colors.white70)),
         trailing: TextButton(
           onPressed: _disconnectDevice,
-          child: Text("Disconnect", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          child: Text(
+            "Disconnect",
+            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );

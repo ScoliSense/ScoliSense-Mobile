@@ -1,8 +1,97 @@
+// -------- Start of NotificationPage.dart --------
 import 'package:flutter/material.dart';
-import 'ProfilePage.dart';
-import 'Help.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
 
-class NotificationPage extends StatelessWidget {
+// Import the notification service
+import 'notification_service.dart'; // Make sure this path is correct
+
+class NotificationPage extends StatefulWidget {
+  @override
+  _NotificationPageState createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  List<Map<String, String>> _receivedNotifications = [];
+  StreamSubscription? _fcmSubscription;
+  bool _isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndSetupNotifications();
+  }
+
+  Future<void> _loadAndSetupNotifications() async {
+    // Load existing notifications from storage
+    final loadedNotifications = await NotificationService.loadNotifications();
+    if (mounted) {
+      setState(() {
+        _receivedNotifications = loadedNotifications;
+        _isLoading = false; // Done loading
+      });
+    }
+
+    // Reset the unread count now that the user is viewing the page
+    await NotificationService.resetUnreadCount();
+
+    // Setup listener for new foreground messages while this page is open
+    _setupFcmListeners();
+  }
+
+  @override
+  void dispose() {
+    _fcmSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Sets up the listener for foreground FCM messages while page is active.
+  void _setupFcmListeners() {
+    _fcmSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Foreground Message received on NotificationPage!');
+
+      // NotificationService already saved it and updated count via main.dart listener.
+      // We just need to update the local UI list immediately.
+
+      // Extract data (duplicate logic from service, could be refactored)
+      String title = message.notification?.title ?? "No Title";
+      String body = message.notification?.body ?? "No Body";
+      String timestampStr = message.data['timestamp'] ?? DateTime.now().toIso8601String();
+      DateTime timestamp;
+      String formattedDate = "N/A";
+      try {
+        timestamp = DateTime.parse(timestampStr).toLocal();
+        formattedDate = DateFormat('MM/dd/yyyy HH:mm').format(timestamp);
+      } catch (e) {
+        timestamp = DateTime.now();
+        formattedDate = DateFormat('MM/dd/yyyy HH:mm').format(timestamp);
+        print("Error parsing timestamp in NotificationPage listener: $e"); // Log parsing error
+      }
+      Map<String, String> newNotification = {
+        "Bildirim": body,
+        "Tarih": formattedDate,
+        "Title": title,
+        "OriginalTimestamp": timestampStr,
+        "ReceivedAt": DateTime.now().toIso8601String(),
+        "id": message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString()
+      };
+
+
+      // Add to local list for immediate UI update if mounted
+      if (mounted) {
+        setState(() {
+          // Avoid duplicates if message handled multiple times (rarely needed but safe)
+          bool exists = _receivedNotifications.any((n) => n['id'] == newNotification['id']);
+          if (!exists) {
+            _receivedNotifications.insert(0, newNotification);
+          }
+        });
+      }
+    });
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,16 +100,13 @@ class NotificationPage extends StatelessWidget {
     );
   }
 
-  /// Creates a futuristic dark app bar with only a back button and title.
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.black,
       elevation: 5,
       leading: IconButton(
         icon: Icon(Icons.arrow_back, color: Colors.cyanAccent),
-        onPressed: () {
-          Navigator.pop(context);
-        },
+        onPressed: () => Navigator.pop(context),
       ),
       title: Text(
         "Bildirimler",
@@ -30,18 +116,45 @@ class NotificationPage extends StatelessWidget {
           letterSpacing: 1.2,
         ),
       ),
+      actions: [ // Optional: Add a clear all button
+        IconButton(
+            icon: Icon(Icons.delete_sweep, color: Colors.redAccent.withOpacity(0.8)),
+            tooltip: "Clear All Notifications",
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Colors.blueGrey.shade800,
+                  title: Text("Clear Notifications?", style: TextStyle(color: Colors.white)),
+                  content: Text("This will remove all notifications from this list.", style: TextStyle(color: Colors.white70)),
+                  actions: [
+                    TextButton(onPressed: ()=> Navigator.of(ctx).pop(false), child: Text("Cancel", style: TextStyle(color: Colors.cyanAccent))),
+                    TextButton(onPressed: ()=> Navigator.of(ctx).pop(true), child: Text("Clear All", style: TextStyle(color: Colors.redAccent))),
+                  ],
+                ),
+              );
+              if (confirm == true && mounted) {
+                await NotificationService.clearAllNotifications();
+                setState(() {
+                  _receivedNotifications = []; // Clear local list
+                });
+              }
+            }
+        ),
+      ],
     );
   }
 
-  /// Creates the main futuristic body content.
   Widget _buildBody() {
     return Container(
+      width: double.infinity, // Ensure container takes full width
+      height: double.infinity, // Ensure container takes full height
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black, // Dark futuristic background
+            Colors.black,
             Colors.blueGrey.shade900,
             Colors.blueGrey.shade800,
           ],
@@ -53,91 +166,126 @@ class NotificationPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 10),
-            _buildNotificationTable(),
+            Expanded( // Allow table container to take available space
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
+              // *** CHANGE: Always call _buildNotificationTable when not loading ***
+                  : _buildNotificationTable(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// Creates a futuristic table for notifications with proper spacing and visible border corners.
+  /// Creates the container and the Table structure for notifications.
+  /// This widget is now always built when not loading.
   Widget _buildNotificationTable() {
     return Container(
       margin: EdgeInsets.all(8),
-      padding: EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: Colors.blueGrey.shade900,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyanAccent.withOpacity(0.8), width: 2),
+          color: Colors.blueGrey.shade900.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.cyanAccent.withOpacity(0.8), width: 1.5), // Thinner border
+          boxShadow: [
+            BoxShadow(
+              color: Colors.cyanAccent.withOpacity(0.15),
+              blurRadius: 6,
+              spreadRadius: 1,
+            )
+          ]
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Table(
-          columnWidths: {
-            0: FlexColumnWidth(3),
-            1: FlexColumnWidth(1),
-          },
-          children: _buildTableRows(),
+        borderRadius: BorderRadius.circular(9), // Slightly smaller radius for clipping
+        // *** CHANGE: Use a Column to hold the header and the list/empty message ***
+        child: Column(
+          children: [
+            // 1. Always build the Header Row
+            _buildTableRowWidget("Bildirim", "Tarih", isHeader: true),
+
+            // 2. Build the list *or* the empty message
+            Expanded( // Let the content fill the remaining space
+              child: _receivedNotifications.isEmpty
+              // Show "No notifications" message if list is empty
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0), // Add some padding
+                  child: Text(
+                    "Henüz bildirim yok.", // "No notifications yet."
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                ),
+              )
+              // Otherwise, build the list using ListView.builder
+                  : ListView.builder(
+                // *** CHANGE: itemCount is now just the data length ***
+                itemCount: _receivedNotifications.length,
+                itemBuilder: (context, index) {
+                  // *** CHANGE: Index directly maps to the data list ***
+                  final notification = _receivedNotifications[index];
+                  return _buildTableRowWidget(
+                    notification["Bildirim"] ?? '', // Use null safety
+                    notification["Tarih"] ?? '',    // Use null safety
+                    isHeader: false,
+                    // *** CHANGE: isLastRow logic based on index in data list ***
+                    isLastRow: index == _receivedNotifications.length - 1,
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// Generates the table rows dynamically and removes the line from the last row.
-  List<TableRow> _buildTableRows() {
-    List<Map<String, String>> notifications = [
-      {"Bildirim": "Cihaz Bağlantısı Kesildi", "Tarih": "02/18/2025"},
-      {"Bildirim": "Düşük Pil Seviyesi", "Tarih": "02/17/2025"},
-      {"Bildirim": "Yeni Yazılım Güncellemesi", "Tarih": "02/16/2025"},
-      {"Bildirim": "Cihaz Bağlandı", "Tarih": "02/15/2025"},
-    ];
 
-    List<TableRow> rows = [
-      _buildTableRow("Bildirim", "Tarih", isHeader: true), // Header row
-    ];
-
-    for (int i = 0; i < notifications.length; i++) {
-      bool isLastRow = i == notifications.length - 1;
-      rows.add(_buildTableRow(notifications[i]["Bildirim"]!, notifications[i]["Tarih"]!, isLastRow: isLastRow));
-    }
-
-    return rows;
-  }
-
-  /// Creates a futuristic row for the table.
-  TableRow _buildTableRow(String text1, String text2, {bool isHeader = false, bool isLastRow = false}) {
-    return TableRow(
+  /// Creates a single visual row using Widgets (suitable for header or ListView.builder items)
+  Widget _buildTableRowWidget(String text1, String text2, {bool isHeader = false, bool isLastRow = false}) {
+    return Container(
       decoration: BoxDecoration(
-        color: isHeader ? Colors.blueGrey.shade800 : Colors.transparent,
-        border: isLastRow
-            ? null // No bottom border for the last row
-            : Border(bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.5))),
+        // Header has a distinct background
+        color: isHeader ? Colors.blueGrey.shade800.withOpacity(0.7) : Colors.transparent,
+        // Apply bottom border to header and all data rows except the last one
+        border: isHeader || !isLastRow // Apply if header OR if it's NOT the last data row
+            ? Border(bottom: BorderSide(color: Colors.cyanAccent.withOpacity(0.3), width: 0.5))
+            : null, // No bottom border for the very last data row
       ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Text(
-            text1,
-            style: TextStyle(
-              color: isHeader ? Colors.cyanAccent : Colors.white70,
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              fontSize: isHeader ? 18 : 16,
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+      child: Row(
+        children: [
+          Expanded( // Notification text takes flexible space
+            flex: 3, // Matches column width ratio
+            child: Text(
+              text1,
+              style: TextStyle(
+                color: isHeader ? Colors.cyanAccent : Colors.white.withOpacity(0.9),
+                fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+                fontSize: isHeader ? 17 : 15,
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Text(
-            text2,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: isHeader ? Colors.cyanAccent : Colors.white70,
-              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-              fontSize: isHeader ? 18 : 16,
+          SizedBox(width: 10), // Spacer
+          Expanded( // Date text takes flexible space
+            flex: 2, // Matches column width ratio
+            child: Text(
+              text2,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: isHeader ? Colors.cyanAccent : Colors.white.withOpacity(0.7),
+                fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+                fontSize: isHeader ? 17 : 14,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+// --- Original Table implementation (kept commented for reference) ---
+// Widget _buildNotificationTable_OriginalTable() { ... }
+// List<TableRow> _buildTableRows() { ... }
+// TableRow _buildTableRow(String text1, String text2, {bool isHeader = false, bool isLastRow = false}) { ... }
 }
+// -------- End of NotificationPage.dart --------
