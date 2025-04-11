@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'bluetooth_service.dart' as my_ble;
-
 
 class ScanDevicesPage extends StatefulWidget {
   final Function(String) onDeviceConnected;
@@ -23,11 +21,9 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
   BluetoothDevice? _connectedDevice;
   String _connectedDeviceName = "Not Connected";
 
-
   @override
   void initState() {
     super.initState();
-
     _loadConnectedDevice();
   }
 
@@ -36,7 +32,6 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
   void dispose() {
     FlutterBluePlus.stopScan();
     super.dispose();
-
   }
 
   Future<void> _startScan() async {
@@ -49,7 +44,6 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
       });
 
       FlutterBluePlus.startScan(timeout: Duration(seconds: 10));
-
       FlutterBluePlus.scanResults.listen((results) {
         if (!mounted) return;
         setState(() {
@@ -77,16 +71,10 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
 
     try {
       await device.connect();
-
       BluetoothConnectionState state = await device.connectionState.first;
-      if (state != BluetoothConnectionState.connected) {
-        print("Failed to connect to ${device.name}");
-        return;
-      }
-
+      if (state != BluetoothConnectionState.connected) return;
 
       await my_ble.MyBluetoothService().init(device);
-
 
       if (!mounted) return;
       setState(() {
@@ -111,30 +99,19 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
     }
   }
 
-
-
   void _disconnectDevice() async {
-    if (_connectedDevice == null) {
-      print("No device to disconnect");
-      return;
-    }
-
+    if (_connectedDevice == null) return;
     try {
       await _connectedDevice!.disconnect();
-
       if (!mounted) return;
-
       setState(() {
         _connectedDevice = null;
         _connectedDeviceName = "Not Connected";
       });
-
       widget.onDeviceConnected("Not Connected");
-
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove('deviceName');
-
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -142,8 +119,6 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
           backgroundColor: Colors.red,
         ),
       );
-
-      print("Device disconnected successfully.");
     } catch (e) {
       print("Disconnection error: $e");
     }
@@ -173,12 +148,6 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
 
 
   @override
-  void dispose() {
-    FlutterBluePlus.stopScan();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -191,11 +160,7 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.black,
-              Colors.blueGrey.shade900,
-              Colors.blueGrey.shade800,
-            ],
+            colors: [Colors.black, Colors.blueGrey.shade900, Colors.blueGrey.shade800],
           ),
         ),
         child: Column(
@@ -211,9 +176,7 @@ class _ScanDevicesPageState extends State<ScanDevicesPage> {
             ),
             Expanded(
               child: _devices.isEmpty
-                  ? Center(
-                child: Text("No devices found", style: TextStyle(color: Colors.white)),
-              )
+                  ? Center(child: Text("No devices found", style: TextStyle(color: Colors.white)))
                   : ListView.builder(
                 itemCount: _devices.length,
                 itemBuilder: (context, index) {

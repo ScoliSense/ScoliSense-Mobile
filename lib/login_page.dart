@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:firebase_messaging/firebase_messaging.dart'; // Still needed to GET the token
 
 // Removed the import for sendFcmTokenToBackend from main.dart
 // import 'main.dart';
-
 
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -92,13 +90,10 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.remove('password');
     }
 
-
     await prefs.setString('loggedInEmail', emailInput);
-
     await prefs.setString('fullName', fullName);
     await prefs.setString('authToken', authToken);
     await prefs.setString('role', role);
-
 
     // Save the FCM token that was successfully used for login/sent to backend
     if (fcmToken != null && fcmToken.isNotEmpty) {
@@ -133,7 +128,6 @@ class _LoginPageState extends State<LoginPage> {
       } catch (e) {
         print("Error encoding or saving roleSpecificData/device info: $e");
         await prefs.remove('roleSpecificData');
-
         await prefs.remove('deviceName');
         await prefs.remove('deviceId');
         await prefs.remove('isPaired');
@@ -250,11 +244,9 @@ class _LoginPageState extends State<LoginPage> {
         await saveCredentialsAndSession(
             emailInput, passwordInput, fullName, authToken, role, roleSpecificData, fcmToken);
 
-
         // **REMOVED**: No separate FCM token sending needed here
 
         // Clear fields
-
         emailController.clear();
         passwordController.clear();
 
@@ -470,7 +462,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-
   // Login Button Widget
   Widget _buildLoginButton() {
     return SizedBox(
@@ -491,4 +482,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-

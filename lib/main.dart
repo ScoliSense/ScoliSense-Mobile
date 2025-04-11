@@ -1,19 +1,15 @@
-import 'dart:isolate';
 import 'package:flutter/material.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 import 'firebase_options.dart';
-
 import 'login_page.dart';
 import 'MainPage.dart';
 import 'NotificationPage.dart';
 import 'notification_service.dart';
 import 'package:badges/badges.dart' as badges;
-
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -127,12 +123,6 @@ void main() async {
   bool isLoggedIn = authToken != null && authToken.isNotEmpty;
 
   runApp(MyApp(isLoggedIn: isLoggedIn));
-
-}
-
-/// Arka planda çalışacak olan fonksiyon burada tanımlanıyor
-void startCallback() {
-  FlutterForegroundTask.setTaskHandler(MyTaskHandler());
 }
 
 class MyApp extends StatelessWidget {
@@ -196,43 +186,8 @@ class MyApp extends StatelessWidget {
           side: BorderSide(color: Colors.cyanAccent),
         ),
       ),
-
       navigatorObservers: [routeObserver],
       home: isLoggedIn ? MainPage() : LoginPage(),
-
     );
-  }
-}
-
-/// Arka planda sürekli çalışan görevleri tanımlayan sınıf
-class MyTaskHandler extends TaskHandler {
-  @override
-  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
-    debugPrint('[ForegroundService] Başladı: $timestamp');
-  }
-
-  @override
-  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
-    debugPrint('[ForegroundService] onEvent: $timestamp');
-    // Buraya sensör verisi alma veya veri gönderme kodu gelecek
-  }
-
-  @override
-  Future<void> onRepeatEvent(DateTime timestamp, SendPort? sendPort) async {
-    debugPrint('[ForegroundService] onRepeatEvent: $timestamp');
-    // Sürekli tekrar edecek işler burada yapılabilir
-  }
-
-  @override
-  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
-    debugPrint('[ForegroundService] Durduruldu: $timestamp');
-  }
-
-  @override
-  void onButtonPressed(String id) {}
-
-  @override
-  void onNotificationPressed() {
-    FlutterForegroundTask.launchApp();
   }
 }

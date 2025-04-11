@@ -202,17 +202,14 @@ class _MainPageState extends State<MainPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isPaired = prefs.getBool('isPaired') ?? false;
 
-
     if (!mounted) return;
 
     if (isPaired) {
-
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ScanDevicesPage(
             onDeviceConnected: _updateConnectionStatus,
-
           ),
         ),
       );
@@ -220,15 +217,14 @@ class _MainPageState extends State<MainPage> {
       if (result != null && result is String && mounted) {
         _updateConnectionStatus(result);
       }
-
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => EnterCodePage()),
       );
-
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +610,6 @@ class _MainPageState extends State<MainPage> {
       },
     );
   }
-
 
   // Keep the page indicator from the new code
   Widget _buildPageIndicator() {
@@ -1017,4 +1012,3 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
   }
 }
 // --- END OF REVERTED BraceUsageGraphPage IMPLEMENTATION ---
-
