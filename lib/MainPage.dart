@@ -1,4 +1,3 @@
-// -------- Start of MainPage.dart --------
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,10 +5,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:intl/intl.dart'; // Keep for reverted BraceUsageGraphPage
-import 'package:badges/badges.dart' as badges; // Keep from new code
+import 'package:intl/intl.dart';
+import 'package:badges/badges.dart' as badges;
 
-// Import your pages (Keep from new code)
 import 'NotificationPage.dart';
 import 'ProfilePage.dart';
 import 'Help.dart';
@@ -17,18 +15,17 @@ import 'login_page.dart';
 import 'ScanDevicesPage.dart';
 import 'EnterCodePage.dart';
 import 'bluetooth_service.dart' as my_ble;
-
-// Import the notification service (Keep from new code)
 import 'notification_service.dart';
 
-
 class MainPage extends StatefulWidget {
+  final bool forceBadgeRefresh;
+  MainPage({this.forceBadgeRefresh = false});
+
   @override
   _MainPageState createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
-  // Keep all state variables from the new code
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   String _connectionStatus = "Not Connected";
   List<String> _devices = [];
   BluetoothDevice? _connectedDevice;
@@ -44,17 +41,23 @@ class _MainPageState extends State<MainPage> {
 
   double _daysWorn = 0;
   StreamSubscription? _statusSubscription;
-  // Keep ValueListenableBuilder usage with NotificationService
 
   @override
   void initState() {
     super.initState();
-    // Keep all initState logic from new code
+    WidgetsBinding.instance.addObserver(this); // 🔥 Added
+
     _loadStoredDevices();
     _fetchBraceUsageDays();
 
+    if (widget.forceBadgeRefresh) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NotificationService.forceNotifyUnreadCount();
+        print('[MainPage] forceNotifyUnreadCount called post-frame');
+      });
+    }
+
     _statusSubscription = my_ble.MyBluetoothService().statusStream.listen((entry) {
-      // Keep the Bluetooth status update logic from new code
       if (!mounted || _listKey.currentState == null) return;
 
       if (_latestMessages.length >= maxMessages) {
@@ -64,7 +67,6 @@ class _MainPageState extends State<MainPage> {
           0,
               (context, animation) => SizeTransition(
             sizeFactor: animation,
-            // Use the live message builder from new code
             child: _buildLiveMessage(removed),
           ),
           duration: Duration(milliseconds: 300),
@@ -96,14 +98,22 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
-    // Keep all dispose logic from new code
+    WidgetsBinding.instance.removeObserver(this); // 🔥 Added
     _statusSubscription?.cancel();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // Keep the improved _fetchBraceUsageDays from new code
+  // 🔥 NEW: Handle resume from background to refresh unread count
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      NotificationService.forceNotifyUnreadCount();
+      print("[MainPage] App resumed, force-refreshing badge count.");
+    }
+  }
+
   Future<void> _fetchBraceUsageDays() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? deviceId = prefs.getString('deviceId');
@@ -114,29 +124,19 @@ class _MainPageState extends State<MainPage> {
       );
       String? token = prefs.getString('authToken');
 
-      print("Fetching usage for deviceId: $deviceId");
-
       try {
         final response = await http.get(
-            url,
-            headers: {
-              if(token != null) 'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            }
+          url,
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
         );
-        print("Usage API Response Status: ${response.statusCode}");
-        print("Usage API Response Body: ${response.body}");
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          // --- CALCULATION REVERTED TO OLD LOGIC per original request ---
-          // Although fetch logic is new, calculation reverts to old standard: hours/12=days
           double hours = (data['hours'] ?? 0.0).toDouble();
-          double days = hours / 12.0; // Old calculation: days = hours / 12
-          // --- END OF REVERTED CALCULATION ---
-
-          print("Parsed hours: $hours -> Days (Old Calc): $days");
-
+          double days = hours / 12.0;
 
           if (mounted) {
             setState(() {
@@ -144,50 +144,39 @@ class _MainPageState extends State<MainPage> {
             });
           }
         } else {
-          print("Failed to fetch usage data. Status Code: ${response.statusCode}");
-          if (mounted) { setState(() { _daysWorn = 0; }); }
+          if (mounted) setState(() => _daysWorn = 0);
         }
       } catch (e) {
-        print("Error fetching usage data: $e");
-        if (mounted) { setState(() { _daysWorn = 0; }); }
+        if (mounted) setState(() => _daysWorn = 0);
       }
     } else {
-      print("Device ID not found in SharedPreferences.");
-      if (mounted) { setState(() { _daysWorn = 0; }); }
+      if (mounted) setState(() => _daysWorn = 0);
     }
   }
 
-  // Keep the improved _loadStoredDevices from new code
   Future<void> _loadStoredDevices() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? roleSpecificDataString = prefs.getString('roleSpecificData');
-
-    print("Role Specific Data String: $roleSpecificDataString");
 
     if (roleSpecificDataString != null) {
       try {
         final roleSpecificData = jsonDecode(roleSpecificDataString);
         List<dynamic> deviceList = roleSpecificData['devices'] ?? [];
-        print("Decoded Device List: $deviceList");
 
         if (mounted) {
           setState(() {
-            _devices = deviceList
-                .map<String>((device) => (device is Map && device.containsKey('name')) ? device['name'].toString() : 'Unknown Device')
-                .toList();
+            _devices = deviceList.map<String>((device) =>
+            (device is Map && device.containsKey('name')) ? device['name'].toString() : 'Unknown Device').toList();
           });
         }
       } catch (e) {
-        print("Error decoding roleSpecificData: $e");
-        if (mounted) { setState(() { _devices = []; }); }
+        if (mounted) setState(() => _devices = []);
       }
     } else {
-      print("No roleSpecificData found in SharedPreferences.");
-      if (mounted) { setState(() { _devices = []; }); }
+      if (mounted) setState(() => _devices = []);
     }
   }
 
-  // Keep the improved _updateConnectionStatus from new code
   void _updateConnectionStatus(String deviceName) {
     if (!mounted) return;
     setState(() {
@@ -197,7 +186,6 @@ class _MainPageState extends State<MainPage> {
     });
   }
 
-  // Keep the improved _checkAndNavigate from new code
   void _checkAndNavigate(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isPaired = prefs.getBool('isPaired') ?? false;
@@ -225,11 +213,9 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Keep the AppBar from the new code (with badges)
       appBar: _buildAppBar(context),
       body: Stack(
         children: [
@@ -256,19 +242,18 @@ class _MainPageState extends State<MainPage> {
                   }
                 },
                 children: [
-                  _buildGaugePage(), // Uses the REVERTED _buildFullCircleGauge internally
-                  _buildLiveDataPage(), // Keep new code version
-                  _buildBraceUsageGraphPage(), // Displays the REVERTED BraceUsageGraphPage widget
+                  _buildGaugePage(),
+                  _buildLiveDataPage(),
+                  _buildBraceUsageGraphPage(),
                 ],
               ),
             ),
           ),
-          // Keep connection button layout from new code
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 40.0),
-              child: _buildConnectionButton(context), // Keep new code button
+              child: _buildConnectionButton(context),
             ),
           ),
         ],
@@ -276,7 +261,6 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // Keep the AppBar implementation from the new code (with badges)
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.black,
@@ -286,7 +270,6 @@ class _MainPageState extends State<MainPage> {
         child: Image.asset('assets/scoli_logo.png', height: 100),
       ),
       actions: [
-        // --- Notification Badge (Keep from new code) ---
         ValueListenableBuilder<int>(
           valueListenable: NotificationService.unreadCountNotifier,
           builder: (context, unreadCount, child) {
@@ -304,13 +287,11 @@ class _MainPageState extends State<MainPage> {
                 icon: Icon(Icons.notifications, color: Colors.cyanAccent),
                 onPressed: () async {
                   await Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationPage()));
-                  // Count reset logic potentially in NotificationPage or handled by service
                 },
               ),
             );
           },
         ),
-        // Keep settings dropdown from new code
         _buildSettingsDropdown(context),
       ],
     );
@@ -407,12 +388,17 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // This method now returns an instance of the REVERTED BraceUsageGraphPage
   Widget _buildBraceUsageGraphPage() {
-    // This points to the BraceUsageGraphPage class defined at the bottom,
-    // which has been reverted to the old code's implementation.
-    return BraceUsageGraphPage();
+    return Column(
+      children: [
+        Expanded(child: BraceUsageGraphPage()),
+        SizedBox(height: 100), // 👈 bring page dots closer to graph
+        _buildPageIndicator(),
+        SizedBox(height: 100), // 👈 optional bottom spacing
+      ],
+    );
   }
+
 
   // Keep the legend builder from the new code
   Widget _buildLegend(String emoji, String text) {
@@ -780,96 +766,93 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
     final maxEntry = displayData.reduce((a, b) =>
     (a['minutes'] as num) > (b['minutes'] as num) ? a : b);
 
-    return GestureDetector(
-      onHorizontalDragEnd: (details) {
-        if (details.primaryVelocity != null) {
-          if (details.primaryVelocity! < 0) {
-            _changeOffset(-1);
-          } else if (details.primaryVelocity! > 0 && _viewOffset < 0) {
-            _changeOffset(1);
-          }
-        }
-      },
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _isWeekView
-                        ? "Week of ${DateFormat('yMMMd').format(displayData.first['date'])}"
-                        : DateFormat('MMMM yyyy')
-                        .format(displayData.first['date']),
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _isWeekView
+                      ? "Week of ${DateFormat('yMMMd').format(displayData.first['date'])}"
+                      : DateFormat('MMMM yyyy')
+                      .format(displayData.first['date']),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _isWeekView = !_isWeekView),
+                  child: Text(
+                    _isWeekView ? "Month View" : "Week View",
+                    style: TextStyle(color: Colors.cyanAccent),
                   ),
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _isWeekView = !_isWeekView),
-                    child: Text(
-                      _isWeekView ? "Month View" : "Week View",
-                      style: TextStyle(color: Colors.cyanAccent),
-                    ),
+                )
+              ],
+            ),
+            SizedBox(height: 6),
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
                   )
                 ],
               ),
-              SizedBox(height: 6),
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 12,
-                      offset: Offset(0, 4),
-                    )
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Brace Usage Duration",
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600)),
-                            SizedBox(height: 4),
-                            Text(
-                              "${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) ~/ 60)}h ${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) % 60)}m",
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Brace Usage Duration",
                               style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black26),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _isWeekView ? "Week" : "Month",
+                                  fontSize: 14, color: Colors.grey.shade600)),
+                          SizedBox(height: 4),
+                          Text(
+                            "${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) ~/ 60)}h ${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) % 60)}m",
                             style: TextStyle(
-                                fontSize: 14, color: Colors.black87),
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87),
                           ),
+                        ],
+                      ),
+                      Container(
+                        padding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black26),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 20),
-                    SizedBox(
+                        child: Text(
+                          _isWeekView ? "Week" : "Month",
+                          style: TextStyle(fontSize: 14, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity != null) {
+                        if (details.primaryVelocity! < 0) {
+                          _changeOffset(-1);
+                        } else if (details.primaryVelocity! > 0) {
+                          _changeOffset(1);
+                        }
+                      }
+                    },
+                    child: SizedBox(
                       height: 180,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -878,14 +861,14 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text("8 hr",
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 10)),
+                                  style:
+                                  TextStyle(color: Colors.grey, fontSize: 10)),
                               Text("4 hr",
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 10)),
+                                  style:
+                                  TextStyle(color: Colors.grey, fontSize: 10)),
                               Text("1 hr",
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 10)),
+                                  style:
+                                  TextStyle(color: Colors.grey, fontSize: 10)),
                             ],
                           ),
                           SizedBox(width: 12),
@@ -915,9 +898,8 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                                       children: displayData
                                           .asMap()
                                           .entries
-                                          .map((entry) =>
-                                          _buildBar(
-                                              entry, maxEntry))
+                                          .map((entry) => _buildBar(
+                                          entry, maxEntry))
                                           .toList(),
                                     ),
                                   ),
@@ -933,23 +915,26 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBar(MapEntry<int, Map<String, dynamic>> entry, Map<String, dynamic> maxEntry) {
+  Widget _buildBar(MapEntry<int, Map<String, dynamic>> entry,
+      Map<String, dynamic> maxEntry) {
     int index = entry.key;
     var data = entry.value;
     final isMax = data == maxEntry;
     final isSelected = _selectedBarIndex == index;
 
-    final heightFactor = ((data['minutes'] as int) / (maxEntry['minutes'] as int).toDouble()).clamp(0.0, 1.0);
+    final heightFactor =
+    ((data['minutes'] as int) / (maxEntry['minutes'] as int).toDouble())
+        .clamp(0.0, 1.0);
     final barColor = isSelected
         ? Colors.cyan
         : (isMax ? Colors.indigoAccent : Colors.indigo.shade100);
@@ -1011,4 +996,3 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
     );
   }
 }
-// --- END OF REVERTED BraceUsageGraphPage IMPLEMENTATION ---

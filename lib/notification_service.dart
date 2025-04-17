@@ -1,167 +1,184 @@
 // notification_service.dart
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/intl.dart';
 
 class NotificationService {
-  static const _notificationsKey = 'fcm_notifications';
-  static const _unreadCountKey = 'unread_notification_count';
+  static const _storageKey = 'receivedNotifications';
+  static const _unreadCountKey = 'unreadNotificationCount';
+  static const _lastClearKey = 'lastNotificationClearTime';
   static const String backendInputDateFormat = 'MM/dd/yyyy HH:mm:ss';
-  // Format for displaying the date/time in the UI (dropping seconds)
   static const String displayDateFormat = 'MM/dd/yyyy HH:mm';
 
-  // ValueNotifier to broadcast count changes to the UI (e.g., the badge)
-  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier(0);
+  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(0);
 
-  // Initialize service (load initial count)
+  NotificationService._();
+
   static Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    int count = prefs.getInt(_unreadCountKey) ?? 0;
-    unreadCountNotifier.value = count;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentCount = prefs.getInt(_unreadCountKey) ?? 0;
+      unreadCountNotifier.value = currentCount;
+    } catch (e, stacktrace) {
+      print("[NotificationService] ERROR during initialize: $e\n$stacktrace");
+    }
   }
-
-  // ---- Notification Storage ----
 
   static Future<void> saveNotification(RemoteMessage message) async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> allNotifications = prefs.getStringList(_notificationsKey) ?? [];
+    final String callTimestamp = DateTime.now().toIso8601String();
+    print("[$callTimestamp][NotificationService] saveNotification START - ID: ${message.messageId ?? 'N/A'}");
 
-    // --- Data Extraction ---
-    String title = message.notification?.title ?? "Başlık Yok"; // "No Title"
-    String body = message.notification?.body ?? "İçerik Yok";  // "No Body"
-
-    // Get the timestamp string from the message data.
-    // Use the original message data timestamp for the "OriginalTimestamp" field later.
-    final String? originalTimestampStr = message.data['timestamp'];
-    // Use a separate variable for parsing, providing a fallback if original is null/empty.
-    String timestampStrToParse = originalTimestampStr ?? '';
-
-    DateTime? parsedUtcTimestamp; // Make nullable initially
-    DateTime? localTimestamp;    // Make nullable initially
-    String formattedDate = "N/A"; // Default display date
-
-    // Define the formatters based on constants
-    final inputFormat = DateFormat(backendInputDateFormat);
-    final displayFormat = DateFormat(displayDateFormat);
-
-    if (timestampStrToParse.isNotEmpty) {
-      try {
-        // 1. PARSE THE CUSTOM STRING AS UTC
-        //    Use parseUtc() assuming the backend sent UTC time ('MM/dd/yyyy HH:mm:ss').
-        //    If it's server local time, use inputFormat.parse(timestampStrToParse).
-        print("Attempting to parse timestamp: '$timestampStrToParse' using format '$backendInputDateFormat'");
-        parsedUtcTimestamp = inputFormat.parseUtc(timestampStrToParse);
-
-        // 2. Convert the parsed UTC DateTime to the device's local timezone.
-        localTimestamp = parsedUtcTimestamp.toLocal();
-
-        // 3. Format the *local* time for display using the desired display format.
-        formattedDate = displayFormat.format(localTimestamp);
-        print("Parsed successfully. UTC: $parsedUtcTimestamp, Local: $localTimestamp, Formatted: '$formattedDate'");
-
-      } catch (e) {
-        print("Error parsing custom timestamp '$timestampStrToParse' using format '$backendInputDateFormat': $e");
-        // Fallback if parsing fails: Use current time
-        localTimestamp = DateTime.now(); // Use current local time
-        parsedUtcTimestamp = localTimestamp.toUtc(); // Get UTC equivalent
-        formattedDate = displayFormat.format(localTimestamp); // Format fallback for display
-        // Update timestampStrToParse to the fallback ISO string for consistency in ParsedUtcTimestampIso below
-        timestampStrToParse = parsedUtcTimestamp.toIso8601String();
-        print("Using fallback time. Local: $localTimestamp, Formatted: '$formattedDate'");
+    try {
+      if (message.notification == null &&
+          (message.data['title'] == null || message.data['body'] == null)) {
+        print("[$callTimestamp][NotificationService] Ignoring notification with no title/body (likely swipe event)");
+        return;
       }
-    } else {
-      print("Timestamp string was empty or null in message data. Using fallback.");
-      // Fallback if timestamp string is missing entirely: Use current time
-      localTimestamp = DateTime.now(); // Use current local time
-      parsedUtcTimestamp = localTimestamp.toUtc(); // Get UTC equivalent
-      formattedDate = displayFormat.format(localTimestamp); // Format fallback for display
-      // Update timestampStrToParse to the fallback ISO string
-      timestampStrToParse = parsedUtcTimestamp.toIso8601String();
-      print("Using fallback time. Local: $localTimestamp, Formatted: '$formattedDate'");
-    }
 
-    // --- Prepare Notification Data Map ---
-    Map<String, String> newNotificationData = {
-      "Bildirim": body,
-      "Tarih": formattedDate, // Formatted *local* date/time string for display
-      "Title": title,
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> allNotifications = prefs.getStringList(_storageKey) ?? [];
 
-      // Store the original string exactly as received (or empty if it was null)
-      "OriginalTimestamp": originalTimestampStr ?? "",
+      String title = message.notification?.title ?? message.data['title'] ?? "Başlık Yok";
+      String body = message.notification?.body ?? message.data['body'] ?? "İçerik Yok";
+      final String? originalTimestampStr = message.data['timestamp'] ?? message.sentTime?.toIso8601String();
+      String timestampStrToParse = originalTimestampStr ?? '';
 
-      // Store the parsed UTC time in standard ISO format for reliable sorting later.
-      // If parsing failed or timestamp was missing, this will store the fallback time's ISO string.
-      "ParsedUtcTimestampIso": parsedUtcTimestamp?.toIso8601String() ?? DateTime.now().toUtc().toIso8601String(), // Ensure non-null
+      DateTime? parsedUtcTimestamp;
+      DateTime? localTimestamp;
+      String formattedDate = "Tarih Yok";
+      final displayFormat = DateFormat(displayDateFormat);
+      final inputFormat = DateFormat(backendInputDateFormat);
 
-      "ReceivedAt": DateTime.now().toIso8601String(), // App processing time (always current)
-      "id": message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString() // Unique ID
-    };
-
-    // --- Save Notification ---
-    allNotifications.insert(0, jsonEncode(newNotificationData));
-
-    // Optional: Limit the number of stored notifications
-    const int maxNotifications = 50;
-    if (allNotifications.length > maxNotifications) {
-      // Remove the oldest items from the end of the list
-      allNotifications.removeRange(maxNotifications, allNotifications.length);
-    }
-
-    // Persist the updated list to SharedPreferences
-    await prefs.setStringList(_notificationsKey, allNotifications);
-    print("Notification saved. Title: '$title'. OriginalTimestamp: '${newNotificationData['OriginalTimestamp']}'. Total count: ${allNotifications.length}");
-
-    // Also increment unread count
-    await incrementUnreadCount();
-  }
-  static Future<List<Map<String, String>>> loadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final List<String> notificationStrings = prefs.getStringList(_notificationsKey) ?? [];
-    final List<Map<String, String>> notifications = notificationStrings.map((s) {
-      try {
-        // Need to cast the decoded map
-        final decoded = jsonDecode(s);
-        if (decoded is Map) {
-          return Map<String, String>.from(decoded.map((key, value) => MapEntry(key.toString(), value.toString())));
+      if (timestampStrToParse.isNotEmpty) {
+        try {
+          parsedUtcTimestamp = inputFormat.parseUtc(timestampStrToParse);
+          localTimestamp = parsedUtcTimestamp.toLocal();
+          formattedDate = displayFormat.format(localTimestamp);
+        } catch (e) {
+          localTimestamp = DateTime.now();
+          parsedUtcTimestamp = localTimestamp.toUtc();
+          formattedDate = displayFormat.format(localTimestamp);
         }
-        return <String, String>{}; // Return empty map if decode fails or isn't a map
-      } catch (e) {
-        print("Error decoding notification: $e");
-        return <String, String>{}; // Return empty map on error
+      } else {
+        localTimestamp = DateTime.now();
+        parsedUtcTimestamp = localTimestamp.toUtc();
+        formattedDate = displayFormat.format(localTimestamp);
       }
-    }).where((map) => map.isNotEmpty).toList(); // Filter out empty maps from errors
-    return notifications;
+
+      final lastClearTime = prefs.getString(_lastClearKey);
+      if (lastClearTime != null) {
+        final clearedAt = DateTime.tryParse(lastClearTime);
+        if (clearedAt != null && parsedUtcTimestamp != null && parsedUtcTimestamp.isBefore(clearedAt)) {
+          print("[$callTimestamp][NotificationService] Notification skipped (older than last clear).");
+          return;
+        }
+      }
+
+      final String uniqueId = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+      Map<String, String> newNotificationData = {
+        "Bildirim": body,
+        "Tarih": formattedDate,
+        "Title": title,
+        "OriginalTimestamp": originalTimestampStr ?? "",
+        "ParsedUtcTimestampIso": parsedUtcTimestamp?.toIso8601String() ?? DateTime.now().toUtc().toIso8601String(),
+        "ReceivedAt": DateTime.now().toIso8601String(),
+        "id": uniqueId
+      };
+
+      bool exists = allNotifications.any((n) {
+        try {
+          var decoded = jsonDecode(n);
+          return decoded is Map && decoded['id'] == uniqueId;
+        } catch (_) {
+          return false;
+        }
+      });
+
+      if (!exists) {
+        String notificationJson = jsonEncode(newNotificationData);
+        allNotifications.insert(0, notificationJson);
+        const int maxNotifications = 50;
+        if (allNotifications.length > maxNotifications) {
+          allNotifications.removeRange(maxNotifications, allNotifications.length);
+        }
+
+        await prefs.setStringList(_storageKey, allNotifications);
+        await incrementUnreadCount();
+        print("[$callTimestamp][NotificationService] Notification saved. ID: $uniqueId");
+      } else {
+        print("[$callTimestamp][NotificationService] Duplicate notification skipped. ID: $uniqueId");
+      }
+    } catch (e, stacktrace) {
+      print("[$callTimestamp][NotificationService] ERROR in saveNotification: $e\n$stacktrace");
+    }
+  }
+
+  static Future<List<Map<String, String>>> loadNotifications() async {
+    List<Map<String, String>> loadedNotifications = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final List<String> rawList = prefs.getStringList(_storageKey) ?? [];
+      for (String jsonStr in rawList) {
+        try {
+          var decoded = jsonDecode(jsonStr);
+          if (decoded is Map) {
+            loadedNotifications.add(decoded.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')));
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      print("[NotificationService] ERROR in loadNotifications: $e");
+    }
+    return loadedNotifications;
   }
 
   static Future<void> clearAllNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_notificationsKey);
-    await resetUnreadCount(); // Also reset count when clearing
-    print("All notifications cleared.");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_storageKey, []);
+      await prefs.setString(_lastClearKey, DateTime.now().toUtc().toIso8601String());
+      await prefs.commit();
+      await resetUnreadCount();
+      print("[NotificationService] Notifications cleared.");
+    } catch (e) {
+      print("[NotificationService] ERROR in clearAllNotifications: $e");
+    }
   }
 
-
-  // ---- Unread Count Management ----
-
   static Future<void> incrementUnreadCount() async {
-    final prefs = await SharedPreferences.getInstance();
-    int currentCount = prefs.getInt(_unreadCountKey) ?? 0;
-    currentCount++;
-    await prefs.setInt(_unreadCountKey, currentCount);
-    unreadCountNotifier.value = currentCount; // Update notifier
-    print("Unread count incremented: $currentCount");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      int current = prefs.getInt(_unreadCountKey) ?? 0;
+      current++;
+      await prefs.setInt(_unreadCountKey, current);
+      unreadCountNotifier.value = current;
+    } catch (e) {
+      print("[NotificationService] ERROR in incrementUnreadCount: $e");
+    }
   }
 
   static Future<void> resetUnreadCount() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_unreadCountKey, 0);
-    unreadCountNotifier.value = 0; // Update notifier
-    print("Unread count reset.");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_unreadCountKey, 0);
+      unreadCountNotifier.value = 0;
+    } catch (e) {
+      print("[NotificationService] ERROR in resetUnreadCount: $e");
+    }
   }
 
   static int getCurrentUnreadCount() {
     return unreadCountNotifier.value;
+  }
+
+  static void forceNotifyUnreadCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // <- 🔥 critical fix
+    int count = prefs.getInt(_unreadCountKey) ?? 0;
+    unreadCountNotifier.value = count;
+    print("[NotificationService] forceNotifyUnreadCount() -> $count");
   }
 }

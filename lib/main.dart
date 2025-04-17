@@ -3,31 +3,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'dart:convert';
+
 import 'firebase_options.dart';
 import 'login_page.dart';
 import 'MainPage.dart';
 import 'NotificationPage.dart';
 import 'notification_service.dart';
-import 'package:badges/badges.dart' as badges;
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.reload();
   await NotificationService.saveNotification(message);
+  NotificationService.forceNotifyUnreadCount();
   _showLocalNotification(message);
 }
 
 void _showLocalNotification(RemoteMessage message) async {
   final notification = message.notification;
   final android = notification?.android;
-
   if (notification != null && android != null) {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'default_channel',
@@ -39,7 +38,7 @@ void _showLocalNotification(RemoteMessage message) async {
       enableLights: true,
       enableVibration: true,
       visibility: NotificationVisibility.public,
-      fullScreenIntent: true,
+      autoCancel: true,
     );
 
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
@@ -59,13 +58,17 @@ void setupFcmTokenListener() {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? authToken = prefs.getString('authToken');
     String? oldToken = prefs.getString('fcmToken');
-
     if (authToken != null && authToken.isNotEmpty && newToken != oldToken) {
       await prefs.setString('fcmToken', newToken);
     }
   }).onError((err) {
-    print("Error listening to FCM token refresh: $err");
+    print("[Main] Error listening to FCM token refresh: $err");
   });
+}
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  print('[notificationTapBackground] Triggered with payload: ${notificationResponse.payload}');
 }
 
 void main() async {
@@ -74,46 +77,61 @@ void main() async {
 
   const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initSettings = InitializationSettings(android: androidInit);
+
   await flutterLocalNotificationsPlugin.initialize(
     initSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) async {
       if (response.payload == 'notification_click') {
-        // All notifications are already saved by the background handler
-        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => NotificationPage()));
+        await Future.delayed(Duration(milliseconds: 100));
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => MainPage(forceBadgeRefresh: true)),
+              (route) => false,
+        );
       }
     },
+    onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
   );
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
   await NotificationService.initialize();
-
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   await messaging.requestPermission(alert: true, badge: true, sound: true);
-
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true, badge: true, sound: true,
+    alert: false,
+    badge: true,
+    sound: false,
   );
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    print('Foreground message received: ${message.messageId}');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     await NotificationService.saveNotification(message);
-
-    // ❌ Don't show notification while in foreground
-    // _showLocalNotification(message);
+    NotificationService.forceNotifyUnreadCount();
   });
 
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     await NotificationService.saveNotification(message);
-    navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => NotificationPage()));
+    NotificationService.forceNotifyUnreadCount();
+    await Future.delayed(Duration(milliseconds: 100));
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => MainPage(forceBadgeRefresh: true)),
+          (route) => false,
+    );
   });
 
   RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     await NotificationService.saveNotification(initialMessage);
-    Future.delayed(Duration(milliseconds: 500), () {
-      navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => NotificationPage()));
-    });
+    NotificationService.forceNotifyUnreadCount();
+    await Future.delayed(Duration(milliseconds: 200));
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => MainPage(forceBadgeRefresh: true)),
+          (route) => false,
+    );
   }
 
   setupFcmTokenListener();
@@ -121,14 +139,14 @@ void main() async {
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? authToken = prefs.getString('authToken');
   bool isLoggedIn = authToken != null && authToken.isNotEmpty;
+  Widget initialHome = isLoggedIn ? MainPage(forceBadgeRefresh: false) : LoginPage();
 
-  runApp(MyApp(isLoggedIn: isLoggedIn));
+  runApp(MyApp(initialHome: initialHome));
 }
 
 class MyApp extends StatelessWidget {
-  final bool isLoggedIn;
-
-  const MyApp({super.key, required this.isLoggedIn});
+  final Widget initialHome;
+  const MyApp({super.key, required this.initialHome});
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +205,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       navigatorObservers: [routeObserver],
-      home: isLoggedIn ? MainPage() : LoginPage(),
+      home: initialHome,
     );
   }
 }
