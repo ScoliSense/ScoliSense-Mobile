@@ -4,8 +4,18 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'notification_service.dart';
 
 class MyBluetoothService {
+  static const _notificationChannelId = 'bluetooth_notifications';
+  static const _notificationChannelName = 'Bluetooth Notifications';
+  static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
+
   static final MyBluetoothService _instance = MyBluetoothService._internal();
   factory MyBluetoothService() => _instance;
   MyBluetoothService._internal();
@@ -22,7 +32,34 @@ class MyBluetoothService {
   final StreamController<Map<String, String>> _statusStreamController = StreamController.broadcast();
   Stream<Map<String, String>> get statusStream => _statusStreamController.stream;
 
+  Future<void> _initializeNotifications() async {
+    if (_isInitialized) return;
+
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const initializationSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _localNotifications.initialize(initializationSettings);
+
+    // Create the notification channel for Android
+    final androidChannel = AndroidNotificationChannel(
+      _notificationChannelId,
+      _notificationChannelName,
+      importance: Importance.high,
+      playSound: true,
+    );
+
+    await _localNotifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidChannel);
+
+    _isInitialized = true;
+  }
+
   Future<void> init(BluetoothDevice device) async {
+    await _initializeNotifications();
     connectedDevice = device;
     _listenForDisconnection(device);
     _subscribeToConnectivity();
@@ -46,6 +83,7 @@ class MyBluetoothService {
         _clearSubscriptions();
         connectedDevice = null;
         print("🔌 Disconnected from BLE device.");
+        _handleDisconnection();
       }
     });
   }
@@ -228,6 +266,56 @@ class MyBluetoothService {
     } catch (e) {
       print("❌ Error sending batch for $sensorName: $e");
       return false;
+    }
+  }
+
+  Future<void> _handleDisconnection() async {
+    // Create notification data
+    final notificationData = {
+      'title': 'Bluetooth Connection Lost',
+      'body': 'The connection to your device has been lost.',
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    // If app is in foreground, play sound
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      // Play notification sound
+      await SystemSound.play(SystemSoundType.alert);
+      
+      // Save notification for in-app display
+      await NotificationService.saveNotification(
+        RemoteMessage(
+          data: notificationData,
+          notification: null,
+        ),
+      );
+    } else {
+      // Show system notification if app is in background
+      await _localNotifications.show(
+        DateTime.now().millisecond,
+        notificationData['title'],
+        notificationData['body'],
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _notificationChannelId,
+            _notificationChannelName,
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentSound: true,
+          ),
+        ),
+      );
+
+      // Save notification for viewing later
+      await NotificationService.saveNotification(
+        RemoteMessage(
+          data: notificationData,
+          notification: null,
+        ),
+      );
     }
   }
 
