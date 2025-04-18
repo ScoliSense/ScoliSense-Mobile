@@ -77,13 +77,17 @@ class MyBluetoothService {
     }
   }
 
+  StreamSubscription<BluetoothConnectionState>? _disconnectionSubscription;
+
   void _listenForDisconnection(BluetoothDevice device) {
-    device.connectionState.listen((state) {
+    _disconnectionSubscription?.cancel();
+    _disconnectionSubscription = device.connectionState.listen((state) {
       if (state == BluetoothConnectionState.disconnected) {
         _clearSubscriptions();
         connectedDevice = null;
         print("🔌 Disconnected from BLE device.");
         _handleDisconnection();
+        _disconnectionSubscription?.cancel();
       }
     });
   }
@@ -104,6 +108,8 @@ class MyBluetoothService {
       sub.cancel();
     }
     _subscriptions.clear();
+    _disconnectionSubscription?.cancel();
+    _disconnectionSubscription = null;
   }
 
   void _handleIncomingData(List<int> value) {

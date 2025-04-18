@@ -21,36 +21,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await prefs.reload();
   await NotificationService.saveNotification(message);
   NotificationService.forceNotifyUnreadCount();
-  _showLocalNotification(message);
-}
-
-void _showLocalNotification(RemoteMessage message) async {
-  final notification = message.notification;
-  final android = notification?.android;
-  if (notification != null && android != null) {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'default_channel',
-      'Default Channel',
-      channelDescription: 'Skolyoz notification channel',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      enableLights: true,
-      enableVibration: true,
-      visibility: NotificationVisibility.public,
-      autoCancel: true,
-    );
-
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-    await flutterLocalNotificationsPlugin.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      platformDetails,
-      payload: 'notification_click',
-    );
-  }
 }
 
 void setupFcmTokenListener() {
@@ -97,9 +67,9 @@ void main() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   await messaging.requestPermission(alert: true, badge: true, sound: true);
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: false,
+    alert: true,
     badge: true,
-    sound: false,
+    sound: true,
   );
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
