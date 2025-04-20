@@ -132,7 +132,16 @@ class MyBluetoothService {
         });
   }
 
-  void _clearSubscriptions() {
+  void _clearSubscriptions() async {
+    // Tell native service to take over before clearing Flutter subscriptions
+    const platform = MethodChannel('com.example.skolyozmobil/background_service');
+    try {
+      await platform.invokeMethod('takeOverConnection');
+    } catch (e) {
+      print('Error transferring connection to native: $e');
+    }
+    
+    // Now safe to clear Flutter subscriptions
     for (var sub in _subscriptions.values) {
       sub.cancel();
     }

@@ -44,6 +44,11 @@ public class MainActivity extends FlutterActivity {
                             saveCharacteristicInfo(serviceUUID, characteristicUUID);
                             result.success(null);
                             break;
+                        case "takeOverConnection":
+                            Log.d(TAG, "Taking over Bluetooth connection");
+                            takeOverConnection();
+                            result.success(null);
+                            break;
                         default:
                             Log.w(TAG, "Method not implemented: " + call.method);
                             result.notImplemented();
@@ -54,6 +59,22 @@ public class MainActivity extends FlutterActivity {
                     result.error("FAILED", e.getMessage(), null);
                 }
             });
+    }
+
+    private void takeOverConnection() {
+        try {
+            Intent serviceIntent = new Intent(this, BackgroundService.class);
+            serviceIntent.putExtra("action", "takeOver");
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+            Log.d(TAG, "Sent takeover request to background service");
+        } catch (Exception e) {
+            Log.e(TAG, "Error requesting connection takeover", e);
+        }
     }
 
     private void saveCharacteristicInfo(String serviceUUID, String characteristicUUID) {

@@ -76,20 +76,50 @@ public class BackgroundService extends Service {
             startForeground(NOTIFICATION_ID, notification);
             Log.d(TAG, "Service started successfully in foreground");
             
-            if (intent != null && intent.hasExtra("deviceAddress")) {
-                deviceAddress = intent.getStringExtra("deviceAddress");
-                SharedPreferences.Editor editor = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE).edit();
-                editor.putString("lastDeviceAddress", deviceAddress);
-                editor.apply();
-                
-                if (bluetoothGatt == null) {
-                    connectToDevice(deviceAddress);
+            if (intent != null) {
+                String action = intent.getStringExtra("action");
+                if ("takeOver".equals(action)) {
+                    Log.d(TAG, "Taking over Bluetooth connection");
+                    handleTakeOver();
+                } else if (intent.hasExtra("deviceAddress")) {
+                    deviceAddress = intent.getStringExtra("deviceAddress");
+                    SharedPreferences.Editor editor = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE).edit();
+                    editor.putString("lastDeviceAddress", deviceAddress);
+                    editor.apply();
+                    
+                    if (bluetoothGatt == null) {
+                        connectToDevice(deviceAddress);
+                    }
                 }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error starting service in foreground", e);
         }
         return START_STICKY;
+    }
+
+    private void handleTakeOver() {
+        if (bluetoothGatt != null) {
+            Log.d(TAG, "Already connected, no need to take over");
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE);
+        String savedAddress = prefs.getString("lastDeviceAddress", null);
+        
+        if (savedAddress != null) {
+            Log.d(TAG, "Taking over connection for device: " + savedAddress);
+            connectToDevice(savedAddress);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (bluetoothGatt != null) {
+            bluetoothGatt.close();
+            bluetoothGatt = null;
+        }
     }
 
     @Override
