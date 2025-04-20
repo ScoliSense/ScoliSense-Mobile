@@ -49,5 +49,8 @@ dependencies {
     // Add other Firebase products below as needed
     // e.g., implementation("com.google.firebase:firebase-auth")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
 }

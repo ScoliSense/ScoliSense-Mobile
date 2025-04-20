@@ -28,7 +28,13 @@ import org.json.JSONArray;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import okhttp3.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.RequestBody;
+import okhttp3.MediaType;
+import okhttp3.Call;
+import okhttp3.Callback;
 import java.io.IOException;
 
 public class BackgroundService extends Service {
