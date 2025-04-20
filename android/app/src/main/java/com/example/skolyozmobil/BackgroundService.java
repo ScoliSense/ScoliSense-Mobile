@@ -97,9 +97,34 @@ public class BackgroundService extends Service {
         return null;
     }
 
+    private UUID notifyServiceUUID;
+    private UUID notifyCharacteristicUUID;
+
+    private void loadSavedUUIDs() {
+        SharedPreferences prefs = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE);
+        String serviceUUID = prefs.getString("notifyServiceUUID", null);
+        String characteristicUUID = prefs.getString("notifyCharacteristicUUID", null);
+        
+        if (serviceUUID != null && characteristicUUID != null) {
+            try {
+                notifyServiceUUID = UUID.fromString(serviceUUID);
+                notifyCharacteristicUUID = UUID.fromString(characteristicUUID);
+                Log.d(TAG, "Loaded UUIDs - Service: " + serviceUUID + ", Char: " + characteristicUUID);
+            } catch (IllegalArgumentException e) {
+                Log.e(TAG, "Error parsing UUIDs", e);
+            }
+        }
+    }
+
     private void connectToDevice(String address) {
         if (bluetoothAdapter == null || address == null) {
             Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
+            return;
+        }
+
+        loadSavedUUIDs();
+        if (notifyServiceUUID == null || notifyCharacteristicUUID == null) {
+            Log.e(TAG, "Missing service or characteristic UUID");
             return;
         }
 
@@ -131,14 +156,18 @@ public class BackgroundService extends Service {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                List<BluetoothGattService> services = gatt.getServices();
-                for (BluetoothGattService service : services) {
-                    List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-                    for (BluetoothGattCharacteristic characteristic : characteristics) {
-                        if ((characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
-                            gatt.setCharacteristicNotification(characteristic, true);
-                        }
+                BluetoothGattService service = gatt.getService(notifyServiceUUID);
+                if (service != null) {
+                    BluetoothGattCharacteristic characteristic = 
+                        service.getCharacteristic(notifyCharacteristicUUID);
+                    if (characteristic != null) {
+                        boolean success = gatt.setCharacteristicNotification(characteristic, true);
+                        Log.d(TAG, "Set characteristic notification: " + success);
+                    } else {
+                        Log.e(TAG, "Characteristic not found: " + notifyCharacteristicUUID);
                     }
+                } else {
+                    Log.e(TAG, "Service not found: " + notifyServiceUUID);
                 }
             }
         }

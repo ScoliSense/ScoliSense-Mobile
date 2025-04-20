@@ -85,6 +85,22 @@ class MyBluetoothService {
           _subscriptions[characteristic.uuid]?.cancel();
           final sub = characteristic.value.listen(_handleIncomingData);
           _subscriptions[characteristic.uuid] = sub;
+          
+          // Save characteristics info for native service
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('notifyServiceUUID', service.uuid.toString());
+          await prefs.setString('notifyCharacteristicUUID', characteristic.uuid.toString());
+          
+          // Update native service
+          const platform = MethodChannel('com.example.skolyozmobil/background_service');
+          try {
+            await platform.invokeMethod('saveCharacteristicInfo', {
+              'serviceUUID': service.uuid.toString(),
+              'characteristicUUID': characteristic.uuid.toString()
+            });
+          } catch (e) {
+            print('Error saving characteristic info to native: $e');
+          }
         }
       }
     }

@@ -37,6 +37,13 @@ public class MainActivity extends FlutterActivity {
                             saveDeviceAddress(address);
                             result.success(null);
                             break;
+                        case "saveCharacteristicInfo":
+                            Log.d(TAG, "Saving characteristic info");
+                            String serviceUUID = call.argument("serviceUUID");
+                            String characteristicUUID = call.argument("characteristicUUID");
+                            saveCharacteristicInfo(serviceUUID, characteristicUUID);
+                            result.success(null);
+                            break;
                         default:
                             Log.w(TAG, "Method not implemented: " + call.method);
                             result.notImplemented();
@@ -47,6 +54,17 @@ public class MainActivity extends FlutterActivity {
                     result.error("FAILED", e.getMessage(), null);
                 }
             });
+    }
+
+    private void saveCharacteristicInfo(String serviceUUID, String characteristicUUID) {
+        if (serviceUUID != null && characteristicUUID != null) {
+            SharedPreferences prefs = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString("notifyServiceUUID", serviceUUID);
+            editor.putString("notifyCharacteristicUUID", characteristicUUID);
+            editor.apply();
+            Log.d(TAG, "Characteristic info saved - Service: " + serviceUUID + ", Char: " + characteristicUUID);
+        }
     }
 
     private void saveDeviceAddress(String address) {
