@@ -9,6 +9,7 @@ import 'login_page.dart';
 import 'MainPage.dart';
 import 'NotificationPage.dart';
 import 'notification_service.dart';
+import 'background_service.dart';
 
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -105,6 +106,15 @@ void main() async {
   }
 
   setupFcmTokenListener();
+
+  // Start background service with error handling
+  try {
+    print("Starting background service...");
+    await BackgroundService.startService();
+    print("Background service started successfully");
+  } catch (e) {
+    print("Error starting background service: $e");
+  }
 
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? authToken = prefs.getString('authToken');
