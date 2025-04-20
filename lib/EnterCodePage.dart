@@ -34,7 +34,7 @@ class _EnterCodePageState extends State<EnterCodePage> {
     }
 
     final String apiUrl =
-        "https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/Device/pair-device";
+        "https://mybackendhaha.store/api/Device/pair-device";
 
     final payload = {"licenseKey": licenseKey};
 

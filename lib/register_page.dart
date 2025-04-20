@@ -44,7 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     final String url =
-        'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/Auth/register/patient';
+        'https://mybackendhaha.store/api/Auth/register/patient';
 
     final Map<String, dynamic> orderedBody = {
       'birthDate': selectedBirthDate?.toUtc().toIso8601String(),

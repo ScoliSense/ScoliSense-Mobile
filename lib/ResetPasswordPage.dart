@@ -32,7 +32,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     });
 
     final String url =
-        'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/Auth/reset-password';
+        'https://mybackendhaha.store/api/Auth/reset-password';
 
     try {
       final response = await http.post(

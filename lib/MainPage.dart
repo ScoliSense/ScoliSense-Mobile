@@ -120,7 +120,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
     if (deviceId != null && deviceId.isNotEmpty) {
       final url = Uri.parse(
-        'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/Device/usage/$deviceId',
+        'https://mybackendhaha.store/api/Device/usage/$deviceId',
       );
       String? token = prefs.getString('authToken');
 
@@ -653,7 +653,7 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
   Future<void> _fetchUsageData() async {
     setState(() => _isLoading = true);
     final uri = Uri.parse(
-        'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/User/brace-usage');
+        'https://mybackendhaha.store/api/User/brace-usage');
 
     try {
       final prefs = await SharedPreferences.getInstance();

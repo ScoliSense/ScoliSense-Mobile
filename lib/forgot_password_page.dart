@@ -37,7 +37,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       isLoading = true;
     });
 
-    final String url = 'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/Auth/forgot-password';
+    final String url = 'https://mybackendhaha.store/api/Auth/forgot-password';
 
     try {
       final response = await http.post(

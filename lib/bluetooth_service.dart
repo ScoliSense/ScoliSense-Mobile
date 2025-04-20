@@ -165,7 +165,7 @@ class MyBluetoothService {
 
     if (isWifi) {
       final url = Uri.parse(
-        'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/SensorData/by-name',
+        'https://mybackendhaha.store/api/SensorData/by-name',
       );
 
       final data = {
@@ -244,7 +244,7 @@ class MyBluetoothService {
 
   Future<bool> _sendBatchData(String sensorName, List<Map<String, dynamic>> dataPoints, String token) async {
     final url = Uri.parse(
-      'https://scolisensemvpserver-azhpd3hchqgsc8bm.germanywestcentral-01.azurewebsites.net/api/SensorData/batch/by-name',
+      'https://mybackendhaha.store/api/SensorData/batch/by-name',
     );
 
     final payload = {
