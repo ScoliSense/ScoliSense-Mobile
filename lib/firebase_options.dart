@@ -76,7 +76,7 @@ class DefaultFirebaseOptions {
     iosBundleId: 'com.example.skolyozmobil',
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
+  static const FirebaseOptions windows = FirebaseOptions(//
     apiKey: 'AIzaSyDrtn0JsisWRWzmD-uutWBOs96DbhIorks',
     appId: '1:595082308204:web:cc7e8d61d61e133f740649',
     messagingSenderId: '595082308204',
