@@ -61,6 +61,19 @@ class MyBluetoothService {
   Future<void> init(BluetoothDevice device) async {
     await _initializeNotifications();
     connectedDevice = device;
+    
+    // Save device address to SharedPreferences for both Flutter and native Android
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lastDeviceAddress', device.remoteId.str);
+    
+    // Save to BlePrefs for native Android service
+    const platform = MethodChannel('com.example.skolyozmobil/background_service');
+    try {
+      await platform.invokeMethod('saveDeviceAddress', {'address': device.remoteId.str});
+    } catch (e) {
+      print('Error saving device address to native: $e');
+    }
+    
     _listenForDisconnection(device);
     _subscribeToConnectivity();
 

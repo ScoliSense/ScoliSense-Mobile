@@ -1,6 +1,8 @@
 package com.example.skolyozmobil;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.Context;
 import android.os.Build;
 import android.util.Log;
 import io.flutter.embedding.android.FlutterActivity;
@@ -29,6 +31,12 @@ public class MainActivity extends FlutterActivity {
                             stopBackgroundService();
                             result.success(null);
                             break;
+                        case "saveDeviceAddress":
+                            Log.d(TAG, "Saving device address");
+                            String address = call.argument("address");
+                            saveDeviceAddress(address);
+                            result.success(null);
+                            break;
                         default:
                             Log.w(TAG, "Method not implemented: " + call.method);
                             result.notImplemented();
@@ -41,14 +49,33 @@ public class MainActivity extends FlutterActivity {
             });
     }
 
+    private void saveDeviceAddress(String address) {
+        if (address != null && !address.isEmpty()) {
+            SharedPreferences prefs = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString("lastDeviceAddress", address);
+            editor.apply();
+            Log.d(TAG, "Device address saved: " + address);
+        }
+    }
+
     private void startBackgroundService() {
         try {
             Intent serviceIntent = new Intent(this, BackgroundService.class);
+            
+            // Get the device address from SharedPreferences
+            SharedPreferences prefs = getSharedPreferences("BlePrefs", Context.MODE_PRIVATE);
+            String deviceAddress = prefs.getString("lastDeviceAddress", null);
+            
+            if (deviceAddress != null) {
+                serviceIntent.putExtra("deviceAddress", deviceAddress);
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Log.d(TAG, "Starting foreground service (Android O+)");
+                Log.d(TAG, "Starting foreground service (Android O+) with device: " + deviceAddress);
                 startForegroundService(serviceIntent);
             } else {
-                Log.d(TAG, "Starting service (pre-Android O)");
+                Log.d(TAG, "Starting service (pre-Android O) with device: " + deviceAddress);
                 startService(serviceIntent);
             }
         } catch (Exception e) {
