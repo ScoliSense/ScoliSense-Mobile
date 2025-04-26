@@ -13,23 +13,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
 
-  /// **Geçerli bir e-posta adresi olup olmadığını kontrol eder.**
+  /// **Checks if the email is valid.**
   bool _isValidEmail(String email) {
     final RegExp emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     return emailRegex.hasMatch(email);
   }
 
-  /// **Şifre sıfırlama isteğini gönderir.**
+  /// **Sends a password reset request.**
   Future<void> requestPasswordReset() async {
     final String email = emailController.text.trim();
 
     if (email.isEmpty) {
-      _showErrorDialog('Lütfen e-posta adresinizi girin.');
+      _showErrorDialog('Please enter your email address.');
       return;
     }
 
     if (!_isValidEmail(email)) {
-      _showErrorDialog('Lütfen geçerli bir e-posta adresi girin.');
+      _showErrorDialog('Please enter a valid email address.');
       return;
     }
 
@@ -51,12 +51,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
       if (response.statusCode == 200) {
         _showSuccessDialog(
-            'Şifre sıfırlama isteği gönderildi. Lütfen e-postanızı kontrol edin.', email);
+            'Password reset request sent. Please check your email.', email);
       } else {
-        _showErrorDialog('Şifre sıfırlama başarısız.');
+        _showErrorDialog('Password reset failed.');
       }
     } catch (e) {
-      _showErrorDialog('Bağlantı hatası. Lütfen tekrar deneyin.');
+      _showErrorDialog('Connection error. Please try again.');
     }
 
     setState(() {
@@ -64,47 +64,47 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
   }
 
-  /// **Hata mesajlarını gösterir.**
+  /// **Shows error dialogs.**
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hata'),
+        title: Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Tamam'),
+            child: Text('OK'),
           ),
         ],
       ),
     );
   }
 
-  /// **Başarı mesajını gösterir ve ResetPasswordPage’e yönlendirir.**
+  /// **Shows success dialog and redirects to ResetPasswordPage.**
   void _showSuccessDialog(String message, String email) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Kullanıcının dışarıya tıklayıp kapatmasını önler
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Başarılı'),
+        title: Text('Success'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Mevcut dialog'u kapat
+              Navigator.pop(context);
               _navigateToResetPasswordPage(email);
             },
-            child: Text('Devam Et'),
+            child: Text('Continue'),
           ),
         ],
       ),
     ).then((_) {
-      _navigateToResetPasswordPage(email); // Dialog kapansa bile yönlendirir
+      _navigateToResetPasswordPage(email);
     });
   }
 
-  /// **ResetPasswordPage'e yönlendirir ve hangi sayfadan geldiğini belirtir.**
+  /// **Navigates to ResetPasswordPage.**
   void _navigateToResetPasswordPage(String email) {
     Navigator.pushReplacement(
       context,
@@ -126,7 +126,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  /// **Arkaplan Tasarımı**
+  /// **Background design.**
   Widget _buildBackground() {
     return Container(
       decoration: BoxDecoration(
@@ -143,7 +143,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  /// **Form Tasarımı**
+  /// **Forgot password form.**
   Widget _buildForgotPasswordForm() {
     return Center(
       child: Padding(
@@ -154,7 +154,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             Icon(Icons.lock_outline, size: 100, color: Colors.cyanAccent),
             SizedBox(height: 20),
             Text(
-              "Şifremi Unuttum",
+              "Forgot Password",
               style: TextStyle(
                 color: Colors.cyanAccent,
                 fontSize: 26,
@@ -164,7 +164,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             SizedBox(height: 30),
             _buildTextField(
               controller: emailController,
-              hintText: "E-posta",
+              hintText: "Email",
               icon: Icons.email,
             ),
             SizedBox(height: 30),
@@ -178,7 +178,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 );
               },
               child: Text(
-                "Geri Dön",
+                "Go Back",
                 style: TextStyle(
                   color: Colors.cyanAccent,
                   fontWeight: FontWeight.bold,
@@ -191,7 +191,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  /// **Özel TextField Bileşeni**
+  /// **Custom TextField widget.**
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -201,7 +201,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.blueGrey.shade800,
-        borderRadius: BorderRadius.circular(50), // KÖŞELERİ TAM YUVARLAK YAPIYORUZ
+        borderRadius: BorderRadius.circular(50),
       ),
       child: TextField(
         controller: controller,
@@ -214,10 +214,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           hintStyle: TextStyle(color: Colors.white70),
           filled: true,
           fillColor: Colors.blueGrey.shade800,
-          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20), // İçeriği daha ortalar
+          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50), // Köşeler tamamen yuvarlak
-            borderSide: BorderSide(color: Colors.cyanAccent, width: 2), // Çerçeve rengi
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide(color: Colors.cyanAccent, width: 2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(50),
@@ -232,7 +232,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  /// **Şifre Sıfırlama Butonu**
+  /// **Password reset button.**
   Widget _buildRequestButton() {
     return ElevatedButton(
       onPressed: isLoading ? null : () {
@@ -249,7 +249,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       child: isLoading
           ? CircularProgressIndicator(color: Colors.black)
           : Text(
-        "Şifre Sıfırlama İsteği Gönder",
+        "Send Password Reset Request",
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 18,

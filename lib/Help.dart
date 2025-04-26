@@ -21,7 +21,7 @@ class HelpPage extends StatelessWidget {
         },
       ),
       title: Text(
-        "Yardım",
+        "Help",
         style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, letterSpacing: 1.2),
       ),
     );
@@ -46,7 +46,7 @@ class HelpPage extends StatelessWidget {
         child: ListView(
           children: [
             Text(
-              "Sıkça Sorulan Sorular",
+              "Frequently Asked Questions",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -56,20 +56,20 @@ class HelpPage extends StatelessWidget {
             ),
             SizedBox(height: 20),
             _buildExpansionTile(
-              title: "Scoliosis Brace nedir?",
-              content: "Scoliosis Brace, omurga eğriliğini düzeltmek için kullanılan bir cihazdır.",
+              title: "What is a Scoliosis Brace?",
+              content: "A Scoliosis Brace is a device used to correct spinal curvature.",
             ),
             _buildExpansionTile(
-              title: "Cihaz bağlantı hatası alıyorum, ne yapmalıyım?",
-              content: "Cihazınızı Bluetooth ile tekrar bağlamayı deneyin veya uygulamayı yeniden başlatın.",
+              title: "I am getting a device connection error, what should I do?",
+              content: "Try reconnecting your device via Bluetooth or restarting the app.",
             ),
             _buildExpansionTile(
-              title: "Uygulamayı nasıl güncelleyebilirim?",
-              content: "App Store veya Google Play'den güncellemeleri kontrol edebilirsiniz.",
+              title: "How can I update the app?",
+              content: "You can check for updates via the App Store or Google Play Store.",
             ),
             _buildExpansionTile(
-              title: "Verilerim güvende mi?",
-              content: "Verileriniz güvenli bir şekilde şifrelenir ve gizliliğiniz korunur.",
+              title: "Is my data safe?",
+              content: "Your data is securely encrypted and your privacy is protected.",
             ),
           ],
         ),
@@ -104,15 +104,15 @@ class HelpPage extends StatelessWidget {
           ),
           children: [
             Container(
-              alignment: Alignment.centerLeft, // Aligns text to the left
+              alignment: Alignment.centerLeft,
               padding: EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 20.0),
               child: Text(
                 content,
-                textAlign: TextAlign.left, // Ensures left alignment
+                textAlign: TextAlign.left,
                 style: TextStyle(
                   color: Colors.cyanAccent.withOpacity(0.8),
-                  fontSize: 17, // Slightly larger font size
-                  height: 1.6, // Increased line height for better readability
+                  fontSize: 17,
+                  height: 1.6,
                   letterSpacing: 0.5,
                 ),
               ),

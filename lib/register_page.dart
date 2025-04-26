@@ -30,12 +30,12 @@ class _RegisterPageState extends State<RegisterPage> {
         emailController.text.isEmpty ||
         passwordController.text.isEmpty ||
         birthDateController.text.isEmpty) {
-      _showErrorDialog('Lütfen tüm zorunlu alanları doldurun.');
+      _showErrorDialog('Please fill all required fields.');
       return;
     }
 
     if (!_isValidEmail(emailController.text.trim())) {
-      _showErrorDialog('Lütfen geçerli bir e-posta adresi girin.');
+      _showErrorDialog('Please enter a valid email address.');
       return;
     }
 
@@ -57,11 +57,6 @@ class _RegisterPageState extends State<RegisterPage> {
       'fullName': fullNameController.text.trim(),
     };
 
-    print("DEBUG: Sending payload:");
-    orderedBody.forEach((key, value) {
-      print("  $key: $value");
-    });
-
     try {
       final response = await http.post(
         Uri.parse(url),
@@ -72,21 +67,17 @@ class _RegisterPageState extends State<RegisterPage> {
         body: jsonEncode(orderedBody),
       );
 
-      print("DEBUG: Status Code: ${response.statusCode}");
-      print("DEBUG: Response Body: ${response.body}");
-
       if (response.statusCode == 201 || response.statusCode == 200) {
-        _showSuccessDialog('Kayıt başarılı. Şimdi giriş yapabilirsiniz.');
+        _showSuccessDialog('Registration successful. You can now log in.');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => LoginPage()),
         );
       } else {
-        _showErrorDialog('Kayıt başarısız: ${response.body}');
+        _showErrorDialog('Registration failed: ${response.body}');
       }
     } catch (e) {
-      print('DEBUG: Exception occurred during registration: $e');
-      _showErrorDialog('Bağlantı hatası. Lütfen tekrar deneyin.');
+      _showErrorDialog('Connection error. Please try again.');
     }
 
     setState(() {
@@ -98,12 +89,12 @@ class _RegisterPageState extends State<RegisterPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hata'),
+        title: Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Tamam'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -114,12 +105,12 @@ class _RegisterPageState extends State<RegisterPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Başarılı'),
+        title: Text('Success'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Tamam'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -159,7 +150,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Kayıt Ol",
+                    "Register",
                     style: TextStyle(
                       color: Colors.cyanAccent,
                       fontSize: 26,
@@ -170,19 +161,19 @@ class _RegisterPageState extends State<RegisterPage> {
                   SizedBox(height: 30),
                   _buildTextField(
                     controller: fullNameController,
-                    hintText: "Ad ve Soyad",
+                    hintText: "Full Name",
                     icon: Icons.person,
                   ),
                   SizedBox(height: 15),
                   _buildTextField(
                     controller: emailController,
-                    hintText: "E-posta",
+                    hintText: "Email",
                     icon: Icons.email,
                   ),
                   SizedBox(height: 15),
                   _buildTextField(
                     controller: passwordController,
-                    hintText: "Şifre",
+                    hintText: "Password",
                     obscureText: true,
                     icon: Icons.lock,
                   ),
@@ -221,7 +212,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: AbsorbPointer(
                       child: _buildTextField(
                         controller: birthDateController,
-                        hintText: "Doğum Tarihi (YYYY-MM-DD)",
+                        hintText: "Birth Date (YYYY-MM-DD)",
                         icon: Icons.calendar_today,
                       ),
                     ),
@@ -229,7 +220,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   SizedBox(height: 15),
                   _buildTextField(
                     controller: phoneNumberController,
-                    hintText: "Telefon Numarası (İsteğe Bağlı)",
+                    hintText: "Phone Number",
                     icon: Icons.phone,
                   ),
                   SizedBox(height: 15),
@@ -238,7 +229,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       Icon(Icons.male, color: Colors.cyanAccent),
                       SizedBox(width: 10),
                       Text(
-                        "Cinsiyet:",
+                        "Gender:",
                         style: TextStyle(color: Colors.white),
                       ),
                       SizedBox(width: 10),
@@ -249,8 +240,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           style: TextStyle(color: Colors.white),
                           iconEnabledColor: Colors.cyanAccent,
                           items: [
-                            DropdownMenuItem(child: Text("Erkek"), value: true),
-                            DropdownMenuItem(child: Text("Kadın"), value: false),
+                            DropdownMenuItem(child: Text("Male"), value: true),
+                            DropdownMenuItem(child: Text("Female"), value: false),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -272,7 +263,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       );
                     },
                     child: Text(
-                      "Zaten bir hesabın var mı? Giriş Yap",
+                      "Already have an account? Log in",
                       style: TextStyle(
                         color: Colors.cyanAccent,
                         fontWeight: FontWeight.bold,
@@ -297,7 +288,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      readOnly: hintText.contains("Doğum Tarihi"),
+      readOnly: hintText.contains("Birth Date"),
       style: TextStyle(color: Colors.white),
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: Colors.cyanAccent),
@@ -331,7 +322,7 @@ class _RegisterPageState extends State<RegisterPage> {
       child: isLoading
           ? CircularProgressIndicator(color: Colors.black)
           : Text(
-        "Kayıt Ol",
+        "Register",
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 18,

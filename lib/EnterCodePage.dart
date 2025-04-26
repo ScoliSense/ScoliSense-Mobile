@@ -24,17 +24,15 @@ class _EnterCodePageState extends State<EnterCodePage> {
     final String licenseKey = _codeController.text.trim();
 
     if (token == null || token.isEmpty) {
-      print("DEBUG: Token bulunamadı!");
+      print("DEBUG: No token found!");
       setState(() {
-        _errorMessage =
-        "Oturum doğrulaması bulunamadı. Lütfen yeniden giriş yapın.";
+        _errorMessage = "Session authentication not found. Please log in again.";
         _isLoading = false;
       });
       return;
     }
 
-    final String apiUrl =
-        "https://mybackendhaha.store/api/Device/pair-device";
+    final String apiUrl = "https://mybackendhaha.store/api/Device/pair-device";
 
     final payload = {"licenseKey": licenseKey};
 
@@ -60,28 +58,26 @@ class _EnterCodePageState extends State<EnterCodePage> {
         final String deviceName = responseData['deviceName'];
         final String deviceId = responseData['deviceId'];
 
-        // Store device info in SharedPreferences
+        // Save device info to SharedPreferences
         await prefs.setString('deviceName', deviceName);
         await prefs.setString('deviceId', deviceId);
 
         print("DEBUG: Device name saved: $deviceName");
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Cihaz başarıyla eşleştirildi!")),
+          SnackBar(content: Text("Device paired successfully!")),
         );
 
-        // Navigate to Scan Devices page or another appropriate screen
-        Navigator.pop(context);
+        Navigator.pop(context); // Go back after success
       } else {
         setState(() {
-          _errorMessage =
-          "Cihaz eşleştirilemedi: ${jsonDecode(response.body)['message'] ?? 'Bilinmeyen hata'}";
+          _errorMessage = "Failed to pair device: ${jsonDecode(response.body)['message'] ?? 'Unknown error'}";
         });
       }
     } catch (error) {
       print("DEBUG: Exception during pairing: $error");
       setState(() {
-        _errorMessage = "Bir hata oluştu. Lütfen tekrar deneyin.";
+        _errorMessage = "An error occurred. Please try again.";
       });
     } finally {
       setState(() {
@@ -89,7 +85,6 @@ class _EnterCodePageState extends State<EnterCodePage> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +138,7 @@ class _EnterCodePageState extends State<EnterCodePage> {
           child: Column(
             children: [
               Text(
-                "Cihaz Eşleştir",
+                "Pair Device",
                 style: TextStyle(
                   color: Colors.cyanAccent,
                   fontSize: 26,
@@ -157,7 +152,7 @@ class _EnterCodePageState extends State<EnterCodePage> {
                 style: TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   prefixIcon: Icon(Icons.vpn_key, color: Colors.cyanAccent),
-                  hintText: "Lisans Anahtarını Girin",
+                  hintText: "Enter License Key",
                   hintStyle: TextStyle(color: Colors.white70),
                   filled: true,
                   fillColor: Colors.blueGrey.shade800,
@@ -187,7 +182,7 @@ class _EnterCodePageState extends State<EnterCodePage> {
                   elevation: 10,
                 ),
                 child: Text(
-                  "Gönder",
+                  "Submit",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,

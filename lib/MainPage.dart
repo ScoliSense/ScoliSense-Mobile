@@ -300,93 +300,105 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   // Keep the _buildGaugePage structure from the new code
   Widget _buildGaugePage() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Call the REVERTED gauge builder below
-          _buildFullCircleGauge(),
-          SizedBox(height: 15),
-          Text("Congratulations!",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
-          SizedBox(height: 5),
-          Text("You have worn the scoliosis brace for ${_daysWorn.toStringAsFixed(0)} days.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, color: Colors.white70)),
-          SizedBox(height: 30),
-          // Keep the page indicator from the new code
-          _buildPageIndicator(),
-          // Keep the SizedBox for spacing from the new code
-          SizedBox(height: 80),
-        ],
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height * 0.8, // 🔥 Minimum height like screen
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildFullCircleGauge(),
+              SizedBox(height: 15),
+              Text(
+                "Congratulations!",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
+              ),
+              SizedBox(height: 5),
+              Text(
+                "You have worn the scoliosis brace for ${_daysWorn.toStringAsFixed(0)} days.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.white70),
+              ),
+              SizedBox(height: 30),
+              _buildPageIndicator(),
+              SizedBox(height: 80),
+            ],
+          ),
+        ),
       ),
     );
   }
 
+
   // Keep the _buildLiveDataPage from the new code
   Widget _buildLiveDataPage() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.sensors, size: 80, color: Colors.cyanAccent),
-          SizedBox(height: 20),
-          Text("Live Sensor Data",
-              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
-          SizedBox(height: 20),
-          Container(
-            height: 200,
-            width: 320,
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blueGrey.shade800,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black45,
-                  blurRadius: 6,
-                  offset: Offset(0, 3),
-                )
-              ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.sensors, size: 80, color: Colors.cyanAccent),
+            SizedBox(height: 20),
+            Text(
+              "Live Sensor Data",
+              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
             ),
-            child: AnimatedList(
-              key: _listKey,
-              controller: _scrollController,
-              initialItemCount: _animatedListLength,
-              itemBuilder: (context, index, animation) {
-                if (index >= 0 && index < _latestMessages.length) {
-                  return SizeTransition(
-                    sizeFactor: animation,
-                    child: _buildLiveMessage(_latestMessages[index]), // Uses new code message style
-                  );
-                } else {
-                  return SizedBox.shrink();
-                }
-              },
+            SizedBox(height: 20),
+            Container(
+              height: 320, // 🔥 Increased from 200 to 320
+              width: 340,  // 🔥 Slightly wider
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade800,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  )
+                ],
+              ),
+              child: AnimatedList(
+                key: _listKey,
+                controller: _scrollController,
+                initialItemCount: _animatedListLength,
+                itemBuilder: (context, index, animation) {
+                  if (index >= 0 && index < _latestMessages.length) {
+                    return SizeTransition(
+                      sizeFactor: animation,
+                      child: _buildLiveMessage(_latestMessages[index]),
+                    );
+                  } else {
+                    return SizedBox.shrink();
+                  }
+                },
+              ),
             ),
-          ),
-          SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                _buildLegend("✅", "Sent"), // Keep legend
-                _buildLegend("📦", "Stored"),
-                _buildLegend("❌", "Error"),
-              ],
+            SizedBox(height: 20), // Added a little more breathing space
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  _buildLegend("✅", "Sent"),
+                  _buildLegend("📦", "Stored"),
+                  _buildLegend("❌", "Error"),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 30),
-          // Keep the page indicator from the new code
-          _buildPageIndicator(),
-          // Keep the SizedBox for spacing from the new code
-          SizedBox(height: 80),
-        ],
+            SizedBox(height: 30),
+            _buildPageIndicator(),
+            SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }
+
 
   Widget _buildBraceUsageGraphPage() {
     return Column(
@@ -629,6 +641,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 // --- REVERTED: Use the BraceUsageGraphPage class from the OLD CODE ---
 // The entire implementation below is from the "old code" snippet provided.
 // Full BraceUsageGraphPage with fixed layout and scroll handling
+
+
 class BraceUsageGraphPage extends StatefulWidget {
   @override
   _BraceUsageGraphPageState createState() => _BraceUsageGraphPageState();
@@ -637,11 +651,8 @@ class BraceUsageGraphPage extends StatefulWidget {
 class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
   List<Map<String, dynamic>> _usageData = [];
   bool _isLoading = false;
-
   bool _isWeekView = true;
-  int _viewOffset = 0;
   int? _selectedBarIndex;
-
   DateTime? _latestAvailableDate;
 
   @override
@@ -652,38 +663,57 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
 
   Future<void> _fetchUsageData() async {
     setState(() => _isLoading = true);
-    final uri = Uri.parse(
-        'https://mybackendhaha.store/api/User/brace-usage');
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('authToken');
+      final deviceId = prefs.getString('deviceId');
 
-      if (token == null || token.isEmpty) {
-        print("No token found");
+      if (token == null || token.isEmpty || deviceId == null || deviceId.isEmpty) {
+        print("No token or deviceId found in storage.");
         setState(() => _isLoading = false);
         return;
       }
+
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, 1).toUtc();
+      final endDate = DateTime(now.year, now.month + 1, 0).toUtc();
+
+      final uri = Uri.parse('https://mybackendhaha.store/api/Analysis/usage/daily/simple/list').replace(
+        queryParameters: {
+          'deviceId': deviceId,
+          'startDate': startDate.toIso8601String(),
+          'endDate': endDate.toIso8601String(),
+        },
+      );
 
       final response = await http.get(uri, headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       });
 
+      print("Backend response body:");
+      print(response.body);
+
       if (response.statusCode == 200) {
         List<dynamic> result = json.decode(response.body);
-        List<Map<String, dynamic>> newData = result
-            .map<Map<String, dynamic>>((e) => {
-          "date": DateTime.parse(e['date']),
-          "minutes": e['minutesUsed']
-        })
-            .toList();
+
+        for (var item in result.take(5)) {
+          print("Analysis Date: ${item['analysisDate']} - Total Minutes Used: ${item['totalMinutesUsed']}");
+        }
+
+        List<Map<String, dynamic>> newData = result.map<Map<String, dynamic>>((e) {
+          return {
+            "date": DateTime.parse(e['analysisDate']),
+            "minutes": e['totalMinutesUsed'],
+          };
+        }).toList();
 
         newData.sort((a, b) => a["date"].compareTo(b["date"]));
 
         setState(() {
           _usageData = newData;
-          _latestAvailableDate = _usageData.last['date'];
+          _latestAvailableDate = _usageData.isNotEmpty ? _usageData.last['date'] : null;
           _isLoading = false;
         });
       } else {
@@ -691,33 +721,23 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error during usage fetch: $e");
+      print("Error fetching usage data: $e");
       setState(() => _isLoading = false);
     }
-  }
-
-  void _changeOffset(int delta) {
-    setState(() {
-      _viewOffset += delta;
-    });
   }
 
   List<Map<String, dynamic>> _getDisplayedData() {
     if (_usageData.isEmpty) return [];
 
-    DateTime end;
-    DateTime start;
+    DateTime base = _latestAvailableDate ?? DateTime.now();
+    DateTime start, end;
 
     if (_isWeekView) {
-      DateTime base = _latestAvailableDate ?? DateTime.now();
-      base = base.subtract(Duration(days: base.weekday - 1));
-      start = base.add(Duration(days: 7 * _viewOffset));
+      start = base.subtract(Duration(days: base.weekday - 1)); // Monday
       end = start.add(Duration(days: 6));
     } else {
-      DateTime base = _latestAvailableDate ?? DateTime.now();
-      DateTime monthStart = DateTime(base.year, base.month, 1);
-      start = DateTime(monthStart.year, monthStart.month + _viewOffset, 1);
-      end = DateTime(start.year, start.month + 1, 0);
+      start = DateTime(base.year, base.month, 1);
+      end = DateTime(base.year, base.month + 1, 0);
     }
 
     final filtered = _usageData.where((entry) {
@@ -729,8 +749,9 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
       return List.generate(7, (i) {
         final d = start.add(Duration(days: i));
         final existing = filtered.firstWhere(
-                (e) => _sameDate(e['date'], d),
-            orElse: () => {"date": d, "minutes": 0});
+              (e) => _sameDate(e['date'], d),
+          orElse: () => {"date": d, "minutes": 0},
+        );
         return existing;
       });
     } else {
@@ -738,8 +759,9 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
       return List.generate(daysInMonth, (i) {
         final d = DateTime(start.year, start.month, i + 1);
         final existing = filtered.firstWhere(
-                (e) => _sameDate(e['date'], d),
-            orElse: () => {"date": d, "minutes": 0});
+              (e) => _sameDate(e['date'], d),
+          orElse: () => {"date": d, "minutes": 0},
+        );
         return existing;
       });
     }
@@ -752,11 +774,13 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
   Widget build(BuildContext context) {
     final displayData = _getDisplayedData();
 
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
+    }
+
     if (displayData.isEmpty) {
       return Center(
-        child: _isLoading
-            ? CircularProgressIndicator(color: Colors.cyanAccent)
-            : Text(
+        child: Text(
           "No data available",
           style: TextStyle(color: Colors.white70, fontSize: 16),
         ),
@@ -766,20 +790,27 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
     final maxEntry = displayData.reduce((a, b) =>
     (a['minutes'] as num) > (b['minutes'] as num) ? a : b);
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return GestureDetector(
+        onTap: () {
+      if (_selectedBarIndex != null) {
+        setState(() {
+          _selectedBarIndex = null;
+        });
+      }
+    },
+    child: SingleChildScrollView(
+    child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
+    child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   _isWeekView
                       ? "Week of ${DateFormat('yMMMd').format(displayData.first['date'])}"
-                      : DateFormat('MMMM yyyy')
-                      .format(displayData.first['date']),
+                      : DateFormat('MMMM yyyy').format(displayData.first['date']),
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 TextButton(
@@ -788,10 +819,10 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                     _isWeekView ? "Month View" : "Week View",
                     style: TextStyle(color: Colors.cyanAccent),
                   ),
-                )
+                ),
               ],
             ),
-            SizedBox(height: 6),
+            SizedBox(height: 10),
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -802,11 +833,10 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                     color: Colors.black12,
                     blurRadius: 12,
                     offset: Offset(0, 4),
-                  )
+                  ),
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -814,22 +844,23 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Brace Usage Duration",
-                              style: TextStyle(
-                                  fontSize: 14, color: Colors.grey.shade600)),
+                          Text(
+                            "Brace Usage Duration",
+                            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                          ),
                           SizedBox(height: 4),
                           Text(
                             "${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) ~/ 60)}h ${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) % 60)}m",
                             style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
                         ],
                       ),
                       Container(
-                        padding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black26),
                           borderRadius: BorderRadius.circular(16),
@@ -842,102 +873,53 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
                     ],
                   ),
                   SizedBox(height: 20),
-                  GestureDetector(
-                    onHorizontalDragEnd: (details) {
-                      if (details.primaryVelocity != null) {
-                        if (details.primaryVelocity! < 0) {
-                          _changeOffset(-1);
-                        } else if (details.primaryVelocity! > 0) {
-                          _changeOffset(1);
-                        }
-                      }
-                    },
-                    child: SizedBox(
-                      height: 180,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text("8 hr",
-                                  style:
-                                  TextStyle(color: Colors.grey, fontSize: 10)),
-                              Text("4 hr",
-                                  style:
-                                  TextStyle(color: Colors.grey, fontSize: 10)),
-                              Text("1 hr",
-                                  style:
-                                  TextStyle(color: Colors.grey, fontSize: 10)),
-                            ],
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Expanded(
-                                  child: _isWeekView
-                                      ? Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.end,
-                                    children: displayData
-                                        .asMap()
-                                        .entries
-                                        .map((entry) =>
-                                        _buildBar(entry, maxEntry))
-                                        .toList(),
-                                  )
-                                      : SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      crossAxisAlignment:
-                                      CrossAxisAlignment.end,
-                                      children: displayData
-                                          .asMap()
-                                          .entries
-                                          .map((entry) => _buildBar(
-                                          entry, maxEntry))
-                                          .toList(),
-                                    ),
-                                  ),
-                                ),
-                                Divider(
-                                  color: Colors.grey.shade300,
-                                  thickness: 1,
-                                  height: 16,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  SizedBox(
+                    height: 180,
+                    child: _isWeekView
+                        ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: displayData
+                          .asMap()
+                          .entries
+                          .map((entry) => _buildBar(entry, maxEntry))
+                          .toList(),
+                    )
+                        : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: displayData.length,
+                      physics: PageScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        return _buildBar(MapEntry(index, displayData[index]), maxEntry);
+                      },
                     ),
                   ),
+                  Divider(color: Colors.grey.shade300, thickness: 1, height: 16),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 
-  Widget _buildBar(MapEntry<int, Map<String, dynamic>> entry,
-      Map<String, dynamic> maxEntry) {
+  Widget _buildBar(MapEntry<int, Map<String, dynamic>> entry, Map<String, dynamic> maxEntry) {
     int index = entry.key;
     var data = entry.value;
     final isMax = data == maxEntry;
     final isSelected = _selectedBarIndex == index;
 
-    final heightFactor =
-    ((data['minutes'] as int) / (maxEntry['minutes'] as int).toDouble())
-        .clamp(0.0, 1.0);
-    final barColor = isSelected
+    final minutes = data['minutes'] as int;
+    final heightFactor = (minutes > 0 && maxEntry['minutes'] > 0)
+        ? (minutes / (maxEntry['minutes'] as int)).clamp(0.0, 1.0)
+        : 0.02;
+
+    final barColor = minutes == 0
+        ? Colors.grey.shade300.withOpacity(0.5)
+        : (isSelected
         ? Colors.cyan
-        : (isMax ? Colors.indigoAccent : Colors.indigo.shade100);
+        : (isMax ? Colors.indigoAccent : Colors.indigo.shade100));
 
     return GestureDetector(
       onTap: () {
@@ -946,7 +928,7 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
         });
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 2.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -954,7 +936,7 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4.0),
                 child: Text(
-                  "${(data['minutes'] ~/ 60)}h ${(data['minutes'] % 60)}m",
+                  "${(minutes ~/ 60)}h ${(minutes % 60)}m",
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 12,
@@ -964,23 +946,14 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
               ),
             AnimatedContainer(
               duration: Duration(milliseconds: 300),
-              height: 100 * heightFactor + 10,
-              width: _isWeekView ? 28 : 18,
+              height: 100 * heightFactor + 8,
+              width: _isWeekView ? 24 : 20,
               decoration: BoxDecoration(
                 color: barColor,
                 borderRadius: BorderRadius.circular(6),
                 border: isSelected
                     ? Border.all(color: Colors.cyanAccent, width: 2)
                     : null,
-                boxShadow: isSelected
-                    ? [
-                  BoxShadow(
-                    color: Colors.cyanAccent.withOpacity(0.4),
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  )
-                ]
-                    : [],
               ),
             ),
             SizedBox(height: 6),
@@ -988,7 +961,7 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
               _isWeekView
                   ? DateFormat('E').format(data['date'])[0]
                   : DateFormat('d').format(data['date']),
-              style: TextStyle(fontSize: 12, color: Colors.black87),
+              style: TextStyle(fontSize: 10, color: Colors.black87),
             ),
           ],
         ),

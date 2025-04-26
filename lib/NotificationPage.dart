@@ -66,7 +66,6 @@ class _NotificationPageState extends State<NotificationPage> {
         _isLoading = false;
       });
 
-      // ✅ Mark all as read when refreshed
       await NotificationService.resetUnreadCount();
       NotificationService.forceNotifyUnreadCount();
       print("[NotificationPage] Unread count reset after refresh.");
@@ -106,7 +105,7 @@ class _NotificationPageState extends State<NotificationPage> {
         onPressed: () => Navigator.pop(context),
       ),
       title: Text(
-        "Bildirimler",
+        "Notifications",
         style: TextStyle(
           color: Colors.cyanAccent,
           fontWeight: FontWeight.bold,
@@ -116,18 +115,26 @@ class _NotificationPageState extends State<NotificationPage> {
       actions: [
         IconButton(
           icon: Icon(Icons.delete_sweep, color: Colors.redAccent.withOpacity(0.8)),
-          tooltip: "Tüm Bildirimleri Temizle",
+          tooltip: "Clear All Notifications",
           onPressed: () async {
             final confirm = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
                 backgroundColor: Colors.blueGrey.shade800,
-                title: Text("Bildirimleri Temizle", style: TextStyle(color: Colors.white)),
-                content: Text("Tüm bildirimleri silmek istediğinize emin misiniz?",
-                    style: TextStyle(color: Colors.white70)),
+                title: Text("Clear Notifications", style: TextStyle(color: Colors.white)),
+                content: Text(
+                  "Are you sure you want to delete all notifications?",
+                  style: TextStyle(color: Colors.white70),
+                ),
                 actions: [
-                  TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text("İptal", style: TextStyle(color: Colors.cyanAccent))),
-                  TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text("Sil", style: TextStyle(color: Colors.redAccent))),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: Text("Cancel", style: TextStyle(color: Colors.cyanAccent)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: Text("Delete", style: TextStyle(color: Colors.redAccent)),
+                  ),
                 ],
               ),
             );
@@ -177,21 +184,27 @@ class _NotificationPageState extends State<NotificationPage> {
         borderRadius: BorderRadius.circular(9),
         child: Column(
           children: [
-            _buildTableRow("Bildirim", "Tarih", isHeader: true),
+            _buildTableRow("Notification", "Date", isHeader: true),
             Expanded(
               child: _receivedNotifications.isEmpty
                   ? Center(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Text("Henüz bildirim yok.",
-                      style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  child: Text(
+                    "No notifications yet.",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
                 ),
               )
                   : ListView.builder(
                 itemCount: _receivedNotifications.length,
                 itemBuilder: (context, index) {
                   final n = _receivedNotifications[index];
-                  return _buildTableRow(n["Bildirim"] ?? '', n["Tarih"] ?? '', isLastRow: index == _receivedNotifications.length - 1);
+                  return _buildTableRow(
+                    n["Bildirim"] ?? '',
+                    n["Tarih"] ?? '',
+                    isLastRow: index == _receivedNotifications.length - 1,
+                  );
                 },
               ),
             ),
