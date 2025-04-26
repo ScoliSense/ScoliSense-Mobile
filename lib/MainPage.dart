@@ -698,10 +698,6 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
       if (response.statusCode == 200) {
         List<dynamic> result = json.decode(response.body);
 
-        for (var item in result.take(5)) {
-          print("Analysis Date: ${item['analysisDate']} - Total Minutes Used: ${item['totalMinutesUsed']}");
-        }
-
         List<Map<String, dynamic>> newData = result.map<Map<String, dynamic>>((e) {
           return {
             "date": DateTime.parse(e['analysisDate']),
@@ -791,117 +787,126 @@ class _BraceUsageGraphPageState extends State<BraceUsageGraphPage> {
     (a['minutes'] as num) > (b['minutes'] as num) ? a : b);
 
     return GestureDetector(
-        onTap: () {
-      if (_selectedBarIndex != null) {
-        setState(() {
-          _selectedBarIndex = null;
-        });
-      }
-    },
-    child: SingleChildScrollView(
-    child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
-    child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        if (_selectedBarIndex != null) {
+          setState(() {
+            _selectedBarIndex = null;
+          });
+        }
+      },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _isWeekView
-                      ? "Week of ${DateFormat('yMMMd').format(displayData.first['date'])}"
-                      : DateFormat('MMMM yyyy').format(displayData.first['date']),
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                // Top Info
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _isWeekView
+                          ? "Week of ${DateFormat('yMMMd').format(displayData.first['date'])}"
+                          : DateFormat('MMMM yyyy').format(displayData.first['date']),
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => _isWeekView = !_isWeekView),
+                      child: Text(
+                        _isWeekView ? "Month View" : "Week View",
+                        style: TextStyle(color: Colors.cyanAccent),
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _isWeekView = !_isWeekView),
-                  child: Text(
-                    _isWeekView ? "Month View" : "Week View",
-                    style: TextStyle(color: Colors.cyanAccent),
+                SizedBox(height: 10),
+                // Card
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Title + total usage
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Brace Usage Duration",
+                                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  "${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) ~/ 60)}h ${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) % 60)}m",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.black26),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                _isWeekView ? "Week" : "Month",
+                                style: TextStyle(fontSize: 14, color: Colors.black87),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        // Graph Section
+                        Expanded(
+                          child: _isWeekView
+                              ? Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: displayData
+                                .asMap()
+                                .entries
+                                .map((entry) => _buildBar(entry, maxEntry))
+                                .toList(),
+                          )
+                              : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: displayData.length,
+                            physics: PageScrollPhysics(),
+                            itemBuilder: (context, index) {
+                              return _buildBar(MapEntry(index, displayData[index]), maxEntry);
+                            },
+                          ),
+                        ),
+                        Divider(color: Colors.grey.shade300, thickness: 1, height: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 10),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Brace Usage Duration",
-                            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) ~/ 60)}h ${(displayData.map((e) => e['minutes']).reduce((a, b) => a + b) % 60)}m",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.black26),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          _isWeekView ? "Week" : "Month",
-                          style: TextStyle(fontSize: 14, color: Colors.black87),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-                  SizedBox(
-                    height: 180,
-                    child: _isWeekView
-                        ? Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: displayData
-                          .asMap()
-                          .entries
-                          .map((entry) => _buildBar(entry, maxEntry))
-                          .toList(),
-                    )
-                        : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: displayData.length,
-                      physics: PageScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        return _buildBar(MapEntry(index, displayData[index]), maxEntry);
-                      },
-                    ),
-                  ),
-                  Divider(color: Colors.grey.shade300, thickness: 1, height: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
-    ));
+    );
   }
 
   Widget _buildBar(MapEntry<int, Map<String, dynamic>> entry, Map<String, dynamic> maxEntry) {
