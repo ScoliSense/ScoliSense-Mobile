@@ -10,11 +10,11 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  String fullName = "Yükleniyor...";
-  String email = "Yükleniyor...";
-  String birthDate = "Yükleniyor...";
-  String gender = "Yükleniyor...";
-  String phoneNumber = "Yükleniyor...";
+  String fullName = "Loading...";
+  String email = "Loading...";
+  String birthDate = "Loading...";
+  String gender = "Loading...";
+  String phoneNumber = "Loading...";
   bool isLoading = false;
 
   @override
@@ -26,8 +26,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadUserDetails() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      fullName = prefs.getString('fullName') ?? 'Bilinmeyen Kullanıcı';
-      email = prefs.getString('loggedInEmail') ?? 'Bilinmeyen E-posta';
+      fullName = prefs.getString('fullName') ?? 'Unknown User';
+      email = prefs.getString('loggedInEmail') ?? 'Unknown Email';
 
       String? roleDataString = prefs.getString('roleSpecificData');
       if (roleDataString != null) {
@@ -36,11 +36,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
           birthDate = roleData['birthDate'] != null
               ? _formatDate(roleData['birthDate'])
-              : "Yok";
-          gender = roleData['isMale'] == true ? "Erkek" : "Kadın";
-          phoneNumber = roleData['phoneNumber']?.toString() ?? "Yok";
+              : "Not available";
+          gender = roleData['isMale'] == true ? "Male" : "Female";
+          phoneNumber = roleData['phoneNumber']?.toString() ?? "Not available";
         } catch (e) {
-          print("❌ Hata: Kullanıcı bilgileri ayrıştırılamadı: $e");
+          print("❌ Error: Failed to parse user details: $e");
         }
       }
     });
@@ -51,7 +51,7 @@ class _ProfilePageState extends State<ProfilePage> {
       DateTime date = DateTime.parse(dateString);
       return "${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}";
     } catch (e) {
-      return "Geçersiz tarih";
+      return "Invalid date";
     }
   }
 
@@ -73,12 +73,12 @@ class _ProfilePageState extends State<ProfilePage> {
       );
 
       if (response.statusCode == 200) {
-        _showSuccessDialog('Şifre sıfırlama isteği gönderildi. Lütfen e-postanızı kontrol edin.');
+        _showSuccessDialog('Password reset request sent. Please check your email.');
       } else {
-        _showErrorDialog('Şifre sıfırlama başarısız.');
+        _showErrorDialog('Password reset failed.');
       }
     } catch (e) {
-      _showErrorDialog('Bağlantı hatası. Lütfen tekrar deneyin.');
+      _showErrorDialog('Connection error. Please try again.');
     }
 
     setState(() {
@@ -90,10 +90,10 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hata'),
+        title: Text('Error'),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Tamam')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('OK')),
         ],
       ),
     );
@@ -103,7 +103,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Başarılı'),
+        title: Text('Success'),
         content: Text(message),
         actions: [
           TextButton(
@@ -116,7 +116,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             },
-            child: Text('Tamam'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -140,7 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: () => Navigator.pop(context),
       ),
       title: Text(
-        "Profil",
+        "Profile",
         style: TextStyle(
           color: Colors.cyanAccent,
           fontWeight: FontWeight.bold,
@@ -164,7 +164,7 @@ class _ProfilePageState extends State<ProfilePage> {
           end: Alignment.bottomCenter,
         ),
       ),
-      child: SingleChildScrollView( // 🔥 Add this
+      child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -176,22 +176,21 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
             ),
             SizedBox(height: 30),
-            _buildInfoCard(Icons.email, "E-posta", email),
-            _buildInfoCard(Icons.phone, "Telefon", phoneNumber),
-            _buildInfoCard(Icons.cake, "Doğum Tarihi", birthDate),
-            _buildInfoCard(Icons.wc, "Cinsiyet", gender),
+            _buildInfoCard(Icons.email, "Email", email),
+            _buildInfoCard(Icons.phone, "Phone", phoneNumber),
+            _buildInfoCard(Icons.cake, "Birth Date", birthDate),
+            _buildInfoCard(Icons.wc, "Gender", gender),
             SizedBox(height: 30),
             _buildResetPasswordButton(),
-            SizedBox(height: 20), // Extra padding for bottom space
+            SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-
   Widget _buildProfileImage() {
-    String assetPath = gender == "Erkek" ? "assets/boypp.png" : "assets/girlpp.png";
+    String assetPath = gender == "Male" ? "assets/boypp.png" : "assets/girlpp.png";
     return CircleAvatar(
       radius: 60,
       backgroundColor: Colors.cyanAccent,
@@ -221,7 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onPressed: isLoading ? null : _resetPassword,
       icon: Icon(Icons.lock_reset, color: Colors.black),
       label: Text(
-        isLoading ? "Gönderiliyor..." : "Şifreyi Sıfırla",
+        isLoading ? "Sending..." : "Reset Password",
         style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
       ),
       style: ElevatedButton.styleFrom(

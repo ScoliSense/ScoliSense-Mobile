@@ -7,7 +7,7 @@ import 'ProfilePage.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String email;
-  final String previousPage; // Önceki sayfayı takip etmek için
+  final String previousPage; // To track which page user came from
 
   ResetPasswordPage({required this.email, required this.previousPage});
 
@@ -20,10 +20,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final TextEditingController newPasswordController = TextEditingController();
   bool isLoading = false;
 
-  /// **Şifreyi sıfırlama isteği gönderir**
+  /// **Sends the reset password request**
   Future<void> resetPassword() async {
     if (codeController.text.isEmpty || newPasswordController.text.isEmpty) {
-      _showErrorDialog('Lütfen tüm alanları doldurun.');
+      _showErrorDialog('Please fill in all fields.');
       return;
     }
 
@@ -31,8 +31,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       isLoading = true;
     });
 
-    final String url =
-        'https://mybackendhaha.store/api/Auth/reset-password';
+    final String url = 'https://mybackendhaha.store/api/Auth/reset-password';
 
     try {
       final response = await http.post(
@@ -49,12 +48,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       );
 
       if (response.statusCode == 200) {
-        _showSuccessDialog('Şifre sıfırlama başarılı.');
+        _showSuccessDialog('Password reset successful.');
       } else {
-        _showErrorDialog('Şifre sıfırlama başarısız.');
+        _showErrorDialog('Password reset failed.');
       }
     } catch (e) {
-      _showErrorDialog('Bağlantı hatası.');
+      _showErrorDialog('Connection error.');
     }
 
     setState(() {
@@ -62,12 +61,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     });
   }
 
-  /// **Başarı mesajını gösterir**
+  /// **Shows success message**
   void _showSuccessDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Başarılı'),
+        title: Text('Success'),
         content: Text(message),
         actions: [
           TextButton(
@@ -78,31 +77,31 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 MaterialPageRoute(builder: (context) => LoginPage()),
               );
             },
-            child: Text('Giriş Yap'),
+            child: Text('Login'),
           ),
         ],
       ),
     );
   }
 
-  /// **Hata mesajını gösterir**
+  /// **Shows error message**
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hata'),
+        title: Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Tamam'),
+            child: Text('OK'),
           ),
         ],
       ),
     );
   }
 
-  /// **Geri butonuna basınca önceki sayfaya yönlendirir**
+  /// **Handles back button based on previous page**
   void _goBack() {
     if (widget.previousPage == "ProfilePage") {
       Navigator.pushReplacement(
@@ -125,10 +124,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         elevation: 5,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.cyanAccent),
-          onPressed: _goBack, // Geri butonu önceki sayfaya yönlendirecek
+          onPressed: _goBack, // Custom back button
         ),
         title: Text(
-          "Şifreyi Sıfırla",
+          "Reset Password",
           style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
         ),
       ),
@@ -141,7 +140,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  /// **Arkaplan Tasarımı**
+  /// **Background design**
   Widget _buildBackground() {
     return Container(
       decoration: BoxDecoration(
@@ -158,7 +157,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  /// **Form Tasarımı**
+  /// **Form design**
   Widget _buildPasswordResetForm() {
     return Center(
       child: Padding(
@@ -169,7 +168,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             Icon(Icons.lock_reset, size: 100, color: Colors.cyanAccent),
             SizedBox(height: 20),
             Text(
-              "Şifreyi Sıfırla",
+              "Reset Password",
               style: TextStyle(
                 color: Colors.cyanAccent,
                 fontSize: 26,
@@ -179,13 +178,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             SizedBox(height: 30),
             _buildTextField(
               controller: codeController,
-              hintText: "Kod",
+              hintText: "Verification Code",
               icon: Icons.vpn_key,
             ),
             SizedBox(height: 15),
             _buildTextField(
               controller: newPasswordController,
-              hintText: "Yeni Şifre",
+              hintText: "New Password",
               obscureText: true,
               icon: Icons.lock,
             ),
@@ -197,7 +196,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  /// **Özel TextField Bileşeni**
+  /// **Reusable TextField Widget**
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -207,7 +206,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.blueGrey.shade800,
-        borderRadius: BorderRadius.circular(50), // KÖŞELERİ TAM YUVARLAK YAPIYORUZ
+        borderRadius: BorderRadius.circular(50),
       ),
       child: TextField(
         controller: controller,
@@ -220,10 +219,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           hintStyle: TextStyle(color: Colors.white70),
           filled: true,
           fillColor: Colors.blueGrey.shade800,
-          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20), // İçeriği daha ortalar
+          contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(50), // Köşeler tamamen yuvarlak
-            borderSide: BorderSide(color: Colors.cyanAccent, width: 2), // Çerçeve rengi
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide(color: Colors.cyanAccent, width: 2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(50),
@@ -238,7 +237,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     );
   }
 
-  /// **Şifreyi sıfırla butonu**
+  /// **Reset password button**
   Widget _buildResetButton() {
     return ElevatedButton(
       onPressed: isLoading ? null : resetPassword,
@@ -253,7 +252,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       child: isLoading
           ? CircularProgressIndicator(color: Colors.black)
           : Text(
-        "Şifreyi Sıfırla",
+        "Reset Password",
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 18,

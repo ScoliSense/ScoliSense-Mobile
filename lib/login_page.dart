@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; // Still needed to GET the token
-
-// Removed the import for sendFcmTokenToBackend from main.dart
-// import 'main.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'register_page.dart';
 import 'forgot_password_page.dart';
-import 'MainPage.dart'; // Assuming MainPage.dart is in lib/
+import 'MainPage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,14 +22,12 @@ class _LoginPageState extends State<LoginPage> {
   bool rememberMe = false;
   bool _isPasswordVisible = false;
 
-  // Get the FirebaseMessaging instance
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   @override
   void initState() {
     super.initState();
     _loadSavedCredentials();
-    // We'll request permissions right before login attempt now
   }
 
   @override
@@ -42,8 +37,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // --- Request Notification Permissions ---
-  // Stays the same - needed to get the token
   Future<bool> _requestNotificationPermissions() async {
     print("Requesting notification permissions...");
     NotificationSettings settings = await _firebaseMessaging.requestPermission(
@@ -56,20 +49,10 @@ class _LoginPageState extends State<LoginPage> {
       sound: true,
     );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional) {
-      print('User granted notification permission (Status: ${settings.authorizationStatus})');
-      return true;
-    } else {
-      print('User declined or has not accepted notification permission');
-      // Optionally show a dialog, but be mindful not to annoy
-      return false;
-    }
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
-  // --- Save Credentials and Session Info ---
-  // Stays largely the same, but we also save the FCM token locally now
-  // *after* successful login, mainly for potential future checks (e.g., token refresh)
   Future<void> saveCredentialsAndSession(
       String emailInput,
       String passwordInput,
@@ -77,7 +60,7 @@ class _LoginPageState extends State<LoginPage> {
       String authToken,
       String role,
       dynamic roleSpecificData,
-      String? fcmToken // Pass the token used for login
+      String? fcmToken
       ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('rememberMe', rememberMe);
@@ -95,54 +78,30 @@ class _LoginPageState extends State<LoginPage> {
     await prefs.setString('authToken', authToken);
     await prefs.setString('role', role);
 
-    // Save the FCM token that was successfully used for login/sent to backend
     if (fcmToken != null && fcmToken.isNotEmpty) {
       await prefs.setString('fcmToken', fcmToken);
-      print("FCM token saved locally: $fcmToken");
     } else {
-      await prefs.remove('fcmToken'); // Clear if no token was sent/available
-      print("No valid FCM token provided during login, cleared local token.");
+      await prefs.remove('fcmToken');
     }
 
-
-    // Save role specific data
     if (roleSpecificData != null) {
       try {
         await prefs.setString('roleSpecificData', jsonEncode(roleSpecificData));
-        // Extract and save device details (same logic as before)
-        List<dynamic> deviceList = roleSpecificData is Map && roleSpecificData.containsKey('devices') && roleSpecificData['devices'] is List
-            ? roleSpecificData['devices']
-            : [];
+        List<dynamic> deviceList = roleSpecificData is Map && roleSpecificData.containsKey('devices') ? roleSpecificData['devices'] : [];
         if (deviceList.isNotEmpty && deviceList[0] is Map) {
           var firstDevice = deviceList[0];
           await prefs.setString('deviceName', firstDevice['name']?.toString() ?? '');
           await prefs.setString('deviceId', firstDevice['id']?.toString() ?? '');
           await prefs.setBool('isPaired', firstDevice['isPaired'] ?? false);
-          print("Saved device info: ${firstDevice['name']}, ${firstDevice['id']}");
-        } else {
-          print("No valid device info found in roleSpecificData to save.");
-          await prefs.remove('deviceName');
-          await prefs.remove('deviceId');
-          await prefs.remove('isPaired');
         }
       } catch (e) {
-        print("Error encoding or saving roleSpecificData/device info: $e");
         await prefs.remove('roleSpecificData');
-        await prefs.remove('deviceName');
-        await prefs.remove('deviceId');
-        await prefs.remove('isPaired');
       }
     } else {
       await prefs.remove('roleSpecificData');
-      await prefs.remove('deviceName');
-      await prefs.remove('deviceId');
-      await prefs.remove('isPaired');
     }
-    print("Credentials, session info, and potentially FCM token saved.");
   }
 
-  // --- Load Saved Credentials (for 'Remember Me') ---
-  // Stays the same
   Future<void> _loadSavedCredentials() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -150,53 +109,35 @@ class _LoginPageState extends State<LoginPage> {
       if (rememberMe) {
         emailController.text = prefs.getString('email') ?? '';
         passwordController.text = prefs.getString('password') ?? '';
-        print("Loaded remembered credentials.");
-      } else {
-        print("Remember Me is off, not loading credentials.");
       }
     });
   }
 
-  // --- Login Logic (Modified) ---
   Future<void> loginUser() async {
-    // Basic input validation (same as before)
     if (emailController.text.trim().isEmpty || passwordController.text.isEmpty) {
-      _showErrorDialog('Lütfen e-posta ve şifre alanlarını doldurun.');
+      _showErrorDialog('Please fill in both email and password.');
       return;
     }
     if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(emailController.text.trim())) {
-      _showErrorDialog('Lütfen geçerli bir e-posta adresi girin.');
+      _showErrorDialog('Please enter a valid email address.');
       return;
     }
 
     setState(() { isLoading = true; });
 
-    String? fcmToken; // Variable to hold the FCM token
+    String? fcmToken;
 
     try {
-      // 1. Request Permissions before attempting to get the token
       bool permissionsGranted = await _requestNotificationPermissions();
 
-      // 2. Get FCM Token if permissions were granted
       if (permissionsGranted) {
         try {
           fcmToken = await _firebaseMessaging.getToken();
-          if (fcmToken != null && fcmToken.isNotEmpty) {
-            print('FCM Token Obtained for login request: $fcmToken');
-          } else {
-            print('Failed to get FCM token (token was null or empty), will send null.');
-            fcmToken = null; // Ensure it's null if empty or failed
-          }
         } catch (e) {
-          print('Error getting FCM token: $e');
-          fcmToken = null; // Ensure it's null on error
+          fcmToken = null;
         }
-      } else {
-        print("Notification permissions denied. Proceeding without FCM token.");
-        fcmToken = null; // Explicitly set to null if permissions denied
       }
 
-      // --- Prepare Login Request ---
       final String url = 'https://mybackendhaha.store/api/Auth/login';
       final String emailInput = emailController.text.trim();
       final String passwordInput = passwordController.text;
@@ -204,13 +145,9 @@ class _LoginPageState extends State<LoginPage> {
       final Map<String, dynamic> requestBody = {
         'email': emailInput,
         'password': passwordInput,
-        // Include fcmToken (will be null if not obtained/granted)
         'fcmToken': fcmToken,
       };
 
-      print('Sending login request to $url with body: ${jsonEncode(requestBody)}'); // Log the request body
-
-      // 3. Send Login Request with FCM Token included
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -220,37 +157,25 @@ class _LoginPageState extends State<LoginPage> {
         body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 20));
 
-      // --- Handle Login Response ---
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
         String authToken = data['token'] ?? '';
         String email = data['email'] ?? emailInput;
-        String fullName = data['fullName'] ?? 'Kullanıcı';
+        String fullName = data['fullName'] ?? 'User';
         String role = data['role'] ?? 'User';
         dynamic roleSpecificData = data['roleSpecificData'];
 
         if (authToken.isEmpty) {
-          print('Login failed: Auth token missing in response.');
-          _showErrorDialog('Giriş başarısız: Sunucudan eksik bilgi alındı.');
-          // No need to set isLoading false here, finally block handles it
-          return; // Exit early
+          _showErrorDialog('Login failed: Missing information from server.');
+          return;
         }
 
-        print('Login successful. Auth Token received.');
-        print('Email: $email, Full Name: $fullName, Role: $role');
+        await saveCredentialsAndSession(emailInput, passwordInput, fullName, authToken, role, roleSpecificData, fcmToken);
 
-        // Save credentials, session info, AND the fcmToken that was sent
-        await saveCredentialsAndSession(
-            emailInput, passwordInput, fullName, authToken, role, roleSpecificData, fcmToken);
-
-        // **REMOVED**: No separate FCM token sending needed here
-
-        // Clear fields
         emailController.clear();
         passwordController.clear();
 
-        // Navigate
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -260,52 +185,41 @@ class _LoginPageState extends State<LoginPage> {
         }
 
       } else {
-        // Handle errors (same logic as before)
-        String errorMessage = 'Bilinmeyen bir hata oluştu.';
+        String errorMessage = 'An unknown error occurred.';
         try {
           final errorData = jsonDecode(response.body);
-          errorMessage = errorData['message'] ?? errorData['error'] ?? 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.';
+          errorMessage = errorData['message'] ?? errorData['error'] ?? 'Login failed. Please check your details.';
         } catch(e) {
-          print("Could not decode error response body: ${response.body}");
-          errorMessage = 'Giriş başarısız (Kod: ${response.statusCode}). Lütfen tekrar deneyin.';
+          errorMessage = 'Login failed (Code: ${response.statusCode}). Please try again.';
         }
-        print('Login failed: Status Code: ${response.statusCode}');
-        print('Error Detail: ${response.body}');
         _showErrorDialog(errorMessage);
       }
     } catch (e) {
-      // Handle network/timeout errors (same as before)
-      print('Login error: $e');
-      _showErrorDialog('Bağlantı hatası veya sunucu yanıt vermiyor. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+      _showErrorDialog('Connection error or server not responding. Please check your internet connection and try again.');
     } finally {
-      // Ensure isLoading is always set to false
       if (mounted) {
         setState(() { isLoading = false; });
       }
     }
   }
 
-  // --- Show Error Dialog ---
-  // Stays the same
   void _showErrorDialog(String message) {
     if (!mounted) return;
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text('Hata'),
+        title: const Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tamam'),
+            child: const Text('OK'),
           ),
         ],
       ),
     );
   }
 
-  // --- Build Method ---
-  // Stays the same
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -322,12 +236,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // --- UI Building Widgets ---
-  // All UI building widgets (_buildBackground, _buildLoginForm, _buildTextField, _buildLoginButton)
-  // remain exactly the same as they don't depend on the FCM logic change.
-  // ... (Keep the existing UI widget build methods here) ...
-
-  // Background Gradient
   Widget _buildBackground() {
     return Container(
       decoration: BoxDecoration(
@@ -344,7 +252,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Login Form Area
   Widget _buildLoginForm(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
@@ -359,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 20),
             const Text(
-                "Giriş Yap",
+                "Login",
                 style: TextStyle(
                   color: Colors.cyanAccent,
                   fontSize: 28,
@@ -370,14 +277,14 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 30),
             _buildTextField(
               controller: emailController,
-              hintText: "E-posta",
+              hintText: "Email",
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 15),
             _buildTextField(
               controller: passwordController,
-              hintText: "Şifre",
+              hintText: "Password",
               icon: Icons.lock_outline,
               obscureText: !_isPasswordVisible,
               suffixIcon: IconButton(
@@ -410,7 +317,7 @@ class _LoginPageState extends State<LoginPage> {
                           }
                         },
                       ),
-                      Flexible(child: Text("Beni Hatırla", style: TextStyle(color: Colors.white.withOpacity(0.9)))),
+                      Flexible(child: Text("Remember Me", style: TextStyle(color: Colors.white.withOpacity(0.9)))),
                     ],
                   ),
                 ),
@@ -419,7 +326,7 @@ class _LoginPageState extends State<LoginPage> {
                       context,
                       MaterialPageRoute(builder: (context) => ForgotPasswordPage())
                   ),
-                  child: const Text("Şifremi Unuttum?"),
+                  child: const Text("Forgot Password?"),
                 ),
               ],
             ),
@@ -431,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
                   context,
                   MaterialPageRoute(builder: (context) => RegisterPage())
               ),
-              child: const Text("Hesabın yok mu? Kayıt Ol"),
+              child: const Text("Don't have an account? Sign Up"),
             ),
             const SizedBox(height: 20),
           ],
@@ -440,7 +347,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Reusable Text Field Widget
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -462,7 +368,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Login Button Widget
   Widget _buildLoginButton() {
     return SizedBox(
       width: double.infinity,
@@ -473,11 +378,11 @@ class _LoginPageState extends State<LoginPage> {
           height: 24,
           width: 24,
           child: CircularProgressIndicator(
-            color: Theme.of(context).colorScheme.onPrimary, // Use theme color
+            color: Theme.of(context).colorScheme.onPrimary,
             strokeWidth: 3,
           ),
         )
-            : const Text("Giriş Yap"),
+            : const Text("Login"),
       ),
     );
   }
